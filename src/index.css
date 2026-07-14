@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Fredoka:wght@400;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fredoka", sans-serif;
+  --font-serif: "Fredoka", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-playful: "Fredoka", sans-serif;
+  
+  --color-primary: #fd3932;
+  --color-primary-hover: #e02821;
+  --color-secondary: #000000;
+  --color-accent: #45b3e3;
+  --color-bgsoft: #ffffff;
+  --color-charcoal: #000000;
+  --color-border-gray: #eaedf0;
+  --color-alizarin: #e32636;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bgsoft);
+  color: var(--color-charcoal);
+  font-style: normal !important;
+  scroll-behavior: smooth;
+}
+
+i, em, span, p, h1, h2, h3, h4, h5, h6, select, input, textarea, button, div {
+  font-style: normal !important;
+}
+
+
+@layer utilities {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

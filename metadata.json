@@ -1,0 +1,6 @@
+{
+  "name": "Carditaur",
+  "description": "Automated branded flyer generator for Nigerian small businesses. Relationship marketing made simple.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,39 @@
+{
+  "template_id": "extracted_layered_overlap_01",
+  "name": "Organic Wave Split",
+  "description": "Asymmetric split layout. Left side handles typography in a strict vertical column to balance the heavy visual weight of the right side's organic masked image. The offset shape behind the image acts as a dimensional drop-shadow to separate the foreground from the textured background.",
+  "layout_type": "layered_overlap",
+  "canvas": {
+    "width": 1080,
+    "height": 1080
+  },
+  "regions": [],
+  "content_slots": {},
+  "style_system": {
+    "themes": [
+      {
+        "id": "layered_default",
+        "colors": {
+          "primary": "#D3B78E",
+          "accent": "#C49A3E",
+          "background": "#FDFDFD",
+          "text": "#000000",
+          "secondary": "#2D2D2D"
+        }
+      }
+    ],
+    "typography": [
+      {
+        "id": "caveat_montserrat",
+        "heading_font": "Caveat",
+        "body_font": "Montserrat"
+      }
+    ],
+    "spacing_modes": ["normal"]
+  },
+  "asset_rules": {
+    "image_tags": ["portrait", "person", "celebration", "flowers"],
+    "video_allowed": false,
+    "fallback_image": "https://images.unsplash.com/photo-1557683316-973673baf926"
+  }
+}

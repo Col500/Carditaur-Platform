@@ -1,0 +1,209 @@
+<html>
+<head>
+  {{#if theme.typography.heading_font}}
+  <link href="https://fonts.googleapis.com/css2?family={{font_url theme.typography.heading_font}}:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family={{font_url theme.typography.body_font}}:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {{else}}
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {{/if}}
+  <style>
+    body {
+      margin: 0; padding: 0;
+      width: {{#if width}}{{width}}{{else}}1080{{/if}}px; height: {{#if height}}{{height}}{{else}}1080{{/if}}px;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+      font-family: '{{#if theme.typography.body_font}}{{theme.typography.body_font}}{{else}}Montserrat{{/if}}', sans-serif;
+      background-color: {{#if theme.colors.background}}{{theme.colors.background}}{{else}}#FDFDFD{{/if}};
+      box-sizing: border-box;
+      color: {{#if theme.colors.text}}{{theme.colors.text}}{{else}}#000000{{/if}};
+    }
+
+    /* Left Content Column Layout */
+    .left-content-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      padding: 10% 4% 10% 8%;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+
+    .logo-container {
+      margin-bottom: 20px;
+    }
+
+    .logo-img {
+      max-height: 70px;
+      max-width: 220px;
+      object-fit: contain;
+    }
+
+    .middle-text-group {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+
+    .occasion-text {
+      font-family: '{{#if theme.typography.heading_font}}{{theme.typography.heading_font}}{{else}}Caveat{{/if}}', cursive;
+      font-size: 64px;
+      font-weight: bold;
+      color: {{#if theme.colors.accent}}{{theme.colors.accent}}{{else}}#C49A3E{{/if}};
+      line-height: 0.9;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+
+    .greeting-text {
+      font-family: '{{#if theme.typography.heading_font}}{{theme.typography.heading_font}}{{else}}Caveat{{/if}}', cursive;
+      font-size: clamp(48px, 6vw, 72px);
+      font-weight: bold;
+      color: {{#if theme.colors.text}}{{theme.colors.text}}{{else}}#000000{{/if}};
+      line-height: 0.95;
+      margin: 0;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .body-message {
+      font-family: '{{#if theme.typography.body_font}}{{theme.typography.body_font}}{{else}}Montserrat{{/if}}', sans-serif;
+      font-size: clamp(18px, 2.5vw, 24px);
+      font-weight: 500;
+      color: {{#if theme.colors.secondary}}{{theme.colors.secondary}}{{else}}#2D2D2D{{/if}};
+      line-height: 1.45;
+      max-width: 95%;
+      margin: 0;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .brand-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .business-name {
+      font-family: '{{#if theme.typography.body_font}}{{theme.typography.body_font}}{{else}}Montserrat{{/if}}', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: {{#if theme.colors.secondary}}{{theme.colors.secondary}}{{else}}#2D2D2D{{/if}};
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin: 0;
+    }
+
+    .contacts-area {
+      font-family: '{{#if theme.typography.body_font}}{{theme.typography.body_font}}{{else}}Montserrat{{/if}}', sans-serif;
+      font-size: 18px;
+      color: {{#if theme.colors.secondary}}{{theme.colors.secondary}}{{else}}#2D2D2D{{/if}};
+      opacity: 0.85;
+    }
+
+    /* Right Image Column Layout with Organic Clipping */
+    .right-image-container {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 55%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Organic Shape Backdrop (acts as drop shadow) */
+    .organic-shape-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: {{#if theme.colors.primary}}{{theme.colors.primary}}{{else}}#D3B78E{{/if}};
+      clip-path: url(#wavy-right);
+      transform: translateX(-4.5%) translateY(1%);
+      z-index: 2;
+    }
+
+    /* Foreground image masked with same organic clip path */
+    .primary-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      clip-path: url(#wavy-right);
+      z-index: 3;
+    }
+
+    /* Balloon Overlay / Particle Scatter effect placeholders */
+    .decorations-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- SVG Clip Paths for responsive wavy clipping -->
+  <svg width="0" height="0" style="position: absolute;">
+    <defs>
+      <clipPath id="wavy-right" clipPathUnits="objectBoundingBox">
+        <path d="M 0.2,0 C 0.589,0.203 0.033,0.648 0.37,1 L 1,1 L 1,0 Z" />
+      </clipPath>
+      <clipPath id="wavy-left" clipPathUnits="objectBoundingBox">
+        <path d="M 0.798,0 C 0.411,0.203 0.967,0.648 0.63,1 L 0,1 L 0,0 Z" />
+      </clipPath>
+    </defs>
+  </svg>
+
+  <!-- Base Background -->
+  <div class="left-content-column">
+    <!-- Brand identity top -->
+    <div class="logo-container">
+      {{#if theme.colors.logoNeedsBacking}}
+        <div style="display:inline-block; padding: 10px 20px; background-color: {{theme.colors.logoBackingColor}}; border-radius: 8px;">
+      {{/if}}
+      {{#if slots.logo}}
+        <img class="logo-img" src="{{slots.logo}}" />
+      {{/if}}
+      {{#if theme.colors.logoNeedsBacking}}
+        </div>
+      {{/if}}
+    </div>
+
+    <!-- Core copy content -->
+    <div class="middle-text-group">
+      <h1 class="greeting-text">{{{slots.headline}}}</h1>
+      {{#if slots.subtext}}
+        <p class="body-message">{{{slots.subtext}}}</p>
+      {{/if}}
+    </div>
+
+    <!-- Brand footer details -->
+    <div class="brand-footer">
+      {{#if variationState.variationAxes.show_footer_name}}
+      <div class="business-name">{{businessName}}</div>
+      {{/if}}
+      {{#if slots.cta}}
+        <div class="contacts-area">{{{slots.cta}}}</div>
+      {{/if}}
+    </div>
+  </div>
+
+  <!-- Right clipped media area -->
+  <div class="right-image-container">
+    <div class="organic-shape-backdrop"></div>
+    <img class="primary-image" src="{{slots.background}}" />
+  </div>
+</body>
+</html>
