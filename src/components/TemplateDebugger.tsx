@@ -131,7 +131,7 @@ export function TemplateDebugger({ isOpen, onClose, flyerData, previewPrompt, pr
             <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm space-y-3">
               <div className="flex items-center gap-2 text-charcoal font-bold">
                 <ImageIcon className="w-4 h-4 text-[#39FF14]" />
-                <span className="text-[11px] uppercase tracking-wider font-mono">Ideogram V2 Request</span>
+                <span className="text-[11px] uppercase tracking-wider font-mono">Ideogram 4.0 Default ($0.06)</span>
               </div>
               
               {debugInfo.magicPrompt && (
@@ -145,16 +145,20 @@ export function TemplateDebugger({ isOpen, onClose, flyerData, previewPrompt, pr
 
               <div className="space-y-2">
                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                    <span className="text-[10px] font-mono text-gray-400 uppercase">Resolution</span>
-                    <span className="text-[10px] font-mono font-bold">{ideogramResponse.resolution || 'N/A'}</span>
+                    <span className="text-[10px] font-mono text-gray-400 uppercase">Aspect Ratio</span>
+                    <span className="text-[10px] font-mono font-bold text-[#1E824C]">{debugInfo.aspectRatio || flyerData?.flyerData?.aspectRatio || '1x1'}</span>
                  </div>
                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
-                    <span className="text-[10px] font-mono text-gray-400 uppercase">Seed</span>
-                    <span className="text-[10px] font-mono font-bold">{ideogramResponse.seed || 'N/A'}</span>
+                    <span className="text-[10px] font-mono text-gray-400 uppercase">Format</span>
+                    <span className="text-[10px] font-mono font-bold">{debugInfo.formatLabel || flyerData?.flyerData?.formatLabel || 'Square (1:1)'}</span>
+                 </div>
+                 <div className="flex justify-between items-center py-1 border-b border-slate-50">
+                    <span className="text-[10px] font-mono text-gray-400 uppercase">Resolution</span>
+                    <span className="text-[10px] font-mono font-bold">{ideogramResponse.resolution || (flyerData?.flyerData?.width ? `${flyerData.flyerData.width}x${flyerData.flyerData.height}` : '1080x1080')}</span>
                  </div>
                  <div className="flex justify-between items-center py-1 border-b border-slate-50">
                     <span className="text-[10px] font-mono text-gray-400 uppercase">Safe</span>
-                    <span className="text-[10px] font-mono font-bold text-green-500">{ideogramResponse.is_image_safe ? "YES" : "NO"}</span>
+                    <span className="text-[10px] font-mono font-bold text-green-500">{ideogramResponse.is_image_safe !== false ? "YES" : "NO"}</span>
                  </div>
               </div>
             </div>

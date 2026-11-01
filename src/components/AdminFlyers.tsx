@@ -104,6 +104,9 @@ export function AdminFlyers({ onClose }: { onClose?: () => void }) {
                 {flyer.status === 'approved' && (
                   <div className="absolute top-2 left-2 bg-green-400 text-green-900 text-[10px] font-bold px-2 py-1 rounded shadow-sm">APPROVED</div>
                 )}
+                <div className="absolute top-2 right-2 bg-black/75 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-2 py-1 rounded shadow-sm border border-white/10">
+                  {flyer.flyerData?.aspectRatio || (flyer.flyerData?.width ? `${flyer.flyerData.width}×${flyer.flyerData.height}` : '1:1')}
+                </div>
               </div>
               <div className="font-bold text-sm truncate">{flyer.occasionName}</div>
               <div className="text-[10px] text-gray-500 mb-4">{new Date(flyer.createdAt).toLocaleDateString()}</div>
@@ -122,7 +125,15 @@ export function AdminFlyers({ onClose }: { onClose?: () => void }) {
 }
 
 
-import { LucideImage, LucideType, LucidePhone, LucideUpload, LucideTrash2, LucideBold, LucideItalic, LucideUnderline, LucideDownload, LucideSparkles, LucidePipette, LucideUndo2, LucideShapes, LucideArrowLeft, LucideRedo2, LucideCheckCircle2, LucideUnlock, LucideLock, TypeIcon, LucidePanelTop, LucidePanelBottom, LucidePanelLeft, LucidePanelRight, LucideBan, LucideMaximize } from 'lucide-react';
+import { 
+  LucideImage, LucideType, LucidePhone, LucideUpload, LucideTrash2, 
+  LucideBold, LucideItalic, LucideUnderline, LucideDownload, LucideSparkles, 
+  LucidePipette, LucideUndo2, LucideShapes, LucideArrowLeft, LucideRedo2, 
+  LucideCheckCircle2, LucideUnlock, LucideLock, TypeIcon, LucidePanelTop, 
+  LucidePanelBottom, LucidePanelLeft, LucidePanelRight, LucideBan, LucideMaximize,
+  LucideWand2, LucideCircle, LucideLayers
+} from 'lucide-react';
+import { removeImageBackground } from '../utils/imageUtils';
 
 
 const FONTS = [
@@ -142,9 +153,10 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
   const [activeObj, setActiveObj] = useState<fabric.Object | null>(null);
   
   const [business, setBusiness] = useState<any>(null);
-  const [logoMode, setLogoMode] = useState<'transparent' | 'block' | 'translucent'>('transparent');
+  const [logoMode, setLogoMode] = useState<'transparent' | 'block' | 'translucent' | 'circle' | 'original'>('transparent');
   const [logoBgColor, setLogoBgColor] = useState<string>('#ffffff');
-    const [activeToolMenu, setActiveToolMenu] = useState<'main' | 'text' | 'shapes' | 'logo' | 'addons'>('main');
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const [activeToolMenu, setActiveToolMenu] = useState<'main' | 'text' | 'shapes' | 'logo' | 'addons'>('main');
   const [addonType, setAddonType] = useState<'none' | 'header' | 'footer' | 'left' | 'right'>('none');
   const [addonColor, setAddonColor] = useState<string>('#1E824C');
   const [addonThickness, setAddonThickness] = useState<number>(100);
@@ -175,7 +187,14 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
   
   const saveHistory = (c: fabric.Canvas) => {
     if (isHistoryUpdate.current || !c) return;
-    const json = JSON.stringify((c as any).toJSON(['id', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hasControls', 'borderColor', 'isAddon', 'addonType']));
+
+    // Ensure we never serialize guide lines into history!
+    const guideObjects = c.getObjects().filter((o: any) => o.isGuideLine || (o.stroke === 'magenta' && o.type === 'line' && o.excludeFromExport));
+    guideObjects.forEach(g => {
+      try { c.remove(g); } catch(e) {}
+    });
+
+    const json = JSON.stringify((c as any).toJSON(['id', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hasControls', 'borderColor', 'isAddon', 'addonType', 'name', 'logoMode']));
     undoStack.current.push({
         json,
         width: c.width,
@@ -193,7 +212,7 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
     } catch (e) { console.error("Could not autosave to localstorage", e); }
   };
 
-    const undo = async () => {
+  const undo = async () => {
     if (!canvas || undoStack.current.length <= 1) return;
     isHistoryUpdate.current = true;
     const current = undoStack.current.pop()!;
@@ -227,7 +246,7 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
     }
   };
 
-    const redo = async () => {
+  const redo = async () => {
     if (!canvas || redoStack.current.length === 0) return;
     isHistoryUpdate.current = true;
     const next = redoStack.current.pop()!;
@@ -270,6 +289,17 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
        selection: true,
     });
     
+    let guides: fabric.Line[] = [];
+    const removeGuides = () => {
+        const allObjs = c.getObjects();
+        const toRemove = allObjs.filter((o: any) => o.isGuideLine || (o.stroke === 'magenta' && o.type === 'line' && o.excludeFromExport) || guides.includes(o as fabric.Line));
+        toRemove.forEach(g => {
+            try { c.remove(g); } catch(err) {}
+        });
+        guides = [];
+        c.requestRenderAll();
+    };
+
     const init = async () => {
        const containerWidth = containerRef.current.clientWidth;
        const containerHeight = containerRef.current.clientHeight;
@@ -299,12 +329,31 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
        
        if (!isMounted) return;
        
-       c.on('selection:cleared', () => setActiveObj(null));
-       c.on('selection:created', (e) => setActiveObj(e.selected?.[0] || null));
-       c.on('selection:updated', (e) => setActiveObj(e.selected?.[0] || null));
-       c.on('object:modified', () => saveHistory(c));
-       c.on('object:added', () => saveHistory(c));
-       c.on('object:removed', () => saveHistory(c));
+       c.on('selection:cleared', () => {
+           removeGuides();
+           setActiveObj(null);
+       });
+       c.on('selection:created', (e) => {
+           removeGuides();
+           setActiveObj(e.selected?.[0] || null);
+       });
+       c.on('selection:updated', (e) => {
+           removeGuides();
+           setActiveObj(e.selected?.[0] || null);
+       });
+       c.on('object:modified', (e: any) => {
+           if (e?.target?.isGuideLine) return;
+           removeGuides();
+           saveHistory(c);
+       });
+       c.on('object:added', (e: any) => {
+           if (e?.target?.isGuideLine || (e?.target?.stroke === 'magenta' && e?.target?.excludeFromExport)) return;
+           saveHistory(c);
+       });
+       c.on('object:removed', (e: any) => {
+           if (e?.target?.isGuideLine || (e?.target?.stroke === 'magenta' && e?.target?.excludeFromExport)) return;
+           saveHistory(c);
+       });
        
        // Zoom and pan logic
        c.on('mouse:wheel', function(opt) {
@@ -359,19 +408,18 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
           if (this.viewportTransform) this.setViewportTransform(this.viewportTransform);
           (this as any).isDragging = false;
           (this as any).selection = true;
+          removeGuides();
        });
-       
-       let guides: fabric.Line[] = [];
-       const removeGuides = () => {
-           guides.forEach(g => c.remove(g));
-           guides = [];
-       };
        
        c.on('object:moving', (e) => {
            const obj = e.target;
            if (!obj) return;
            
-           removeGuides();
+           // Clear previous guides
+           guides.forEach(g => {
+               try { c.remove(g); } catch(err) {}
+           });
+           guides = [];
            
            const canvasWidth = c.width! / c.getZoom();
            const canvasHeight = c.height! / c.getZoom();
@@ -384,8 +432,14 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
 
            const drawGuide = (x1: number, y1: number, x2: number, y2: number) => {
                const line = new fabric.Line([x1, y1, x2, y2], {
-                   stroke: 'magenta', strokeWidth: 1, selectable: false, evented: false, strokeDashArray: [5, 5]
+                   stroke: 'magenta', 
+                   strokeWidth: 1.5, 
+                   selectable: false, 
+                   evented: false, 
+                   strokeDashArray: [5, 5],
+                   excludeFromExport: true
                });
+               (line as any).isGuideLine = true;
                guides.push(line);
                c.add(line);
            };
@@ -401,7 +455,7 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
                snappedY = true;
            }
 
-           const objects = c.getObjects().filter(o => o !== obj && o.type !== 'line' && o !== c.backgroundImage);
+           const objects = c.getObjects().filter(o => o !== obj && !(o as any).isGuideLine && o.type !== 'line' && o !== c.backgroundImage);
            for (const other of objects) {
                if (!snappedX && Math.abs(obj.left! - other.left!) < snapThreshold) {
                    obj.set({ left: other.left! });
@@ -417,6 +471,8 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
        });
 
        c.on('mouse:up', removeGuides);
+       window.addEventListener('mouseup', removeGuides);
+       window.addEventListener('pointerup', removeGuides);
        
        c.renderAll();
        setCanvas(c);
@@ -434,6 +490,8 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
     
     return () => {
         isMounted = false;
+        window.removeEventListener('mouseup', removeGuides);
+        window.removeEventListener('pointerup', removeGuides);
         c.dispose();
     };
   }, [canvasRef, containerRef, flyer.imageUrl]);
@@ -513,31 +571,37 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
     }
   };
 
-  const addBusinessLogo = async () => {
+  const addBusinessLogo = async (mode?: 'transparent' | 'block' | 'translucent' | 'circle' | 'original', overrideBg?: string) => {
      if (!canvas || !business || !business.logoUrl) {
          alert("No business logo found in profile.");
          return;
      }
+     setIsRemovingBg(true);
      try {
-       const res = await fetch(business.logoUrl);
-       if (!res.ok) throw new Error("Failed to fetch image");
-       const blob = await res.blob();
-       const objectURL = URL.createObjectURL(blob);
-       const img = await fabric.FabricImage.fromURL(objectURL);
+       const activeMode = mode || logoMode;
+       let srcUrl = business.logoUrl;
+       
+       // If transparent mode (the default), automatically strip the white/solid background
+       if (activeMode === 'transparent') {
+         srcUrl = await removeImageBackground(business.logoUrl, 36);
+       }
+       
+       const img = await fabric.FabricImage.fromURL(srcUrl, { crossOrigin: 'anonymous' });
        img.scaleToWidth(200);
        img.set({ originX: 'center', originY: 'center' });
        
        let objToAdd: fabric.Object = img;
+       const currentBg = overrideBg || logoBgColor;
        
-       if (logoMode === 'block' || logoMode === 'translucent') {
-          const padding = 40;
+       if (activeMode === 'block' || activeMode === 'translucent') {
+          const padding = 36;
           const rect = new fabric.Rect({
              width: img.getScaledWidth() + padding,
              height: img.getScaledHeight() + padding,
-             fill: logoBgColor,
-             opacity: logoMode === 'translucent' ? 0.5 : 1,
-             rx: 15,
-             ry: 15,
+             fill: currentBg,
+             opacity: activeMode === 'translucent' ? 0.6 : 1,
+             rx: 14,
+             ry: 14,
              originX: 'center',
              originY: 'center'
           });
@@ -545,20 +609,89 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
              originX: 'center',
              originY: 'center'
           });
+       } else if (activeMode === 'circle') {
+          const radius = Math.max(img.getScaledWidth(), img.getScaledHeight()) / 2 + 18;
+          const circle = new fabric.Circle({
+             radius: radius,
+             fill: currentBg,
+             originX: 'center',
+             originY: 'center'
+          });
+          objToAdd = new fabric.Group([circle, img], {
+             originX: 'center',
+             originY: 'center'
+          });
        }
        objToAdd.set({ name: 'logo' });
+       (objToAdd as any).logoMode = activeMode;
        
        objToAdd.set({
           left: (canvas.width! / canvas.getZoom()) / 2,
           top: (canvas.height! / canvas.getZoom()) / 2 
         });
        
+       const guideObjects = canvas.getObjects().filter((o: any) => o.isGuideLine);
+       guideObjects.forEach(g => canvas.remove(g));
+
        canvas.add(objToAdd);
        canvas.setActiveObject(objToAdd);
        canvas.renderAll();
+       saveHistory(canvas);
      } catch (e) {
        console.error("Failed to add business logo", e);
        alert("Failed to load business logo.");
+     } finally {
+       setIsRemovingBg(false);
+     }
+  };
+
+  const handleRemoveBgFromSelected = async () => {
+     if (!canvas || !activeObj) return;
+     setIsRemovingBg(true);
+     try {
+       let imgElement: HTMLImageElement | null = null;
+       let srcUrl = '';
+
+       if (activeObj.type === 'image') {
+         imgElement = (activeObj as any)._element;
+         srcUrl = imgElement?.src || (activeObj as any).getSrc?.();
+       } else if (activeObj.type === 'group') {
+         const innerImages = (activeObj as fabric.Group).getObjects().filter(o => o.type === 'image');
+         if (innerImages.length > 0) {
+           imgElement = (innerImages[0] as any)._element;
+           srcUrl = imgElement?.src || (innerImages[0] as any).getSrc?.();
+         }
+       }
+
+       if (!srcUrl) {
+         alert('Please select an image or logo to remove background.');
+         return;
+       }
+
+       const transparentUrl = await removeImageBackground(srcUrl, 38);
+       const newImg = await fabric.FabricImage.fromURL(transparentUrl, { crossOrigin: 'anonymous' });
+       
+       newImg.set({
+         left: activeObj.left,
+         top: activeObj.top,
+         scaleX: activeObj.scaleX,
+         scaleY: activeObj.scaleY,
+         angle: activeObj.angle,
+         originX: activeObj.originX,
+         originY: activeObj.originY,
+         name: activeObj.name || 'image'
+       });
+
+       canvas.remove(activeObj);
+       canvas.add(newImg);
+       canvas.setActiveObject(newImg);
+       canvas.renderAll();
+       saveHistory(canvas);
+     } catch (err) {
+       console.error('Failed to remove background from selected object', err);
+       alert('Could not remove background from this element.');
+     } finally {
+       setIsRemovingBg(false);
      }
   };
 
@@ -567,18 +700,23 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
     if (!file || !canvas) return;
     const reader = new FileReader();
     reader.onload = async (f) => {
-      const data = f.target?.result as string;
+      let data = f.target?.result as string;
+      if (logoMode === 'transparent') {
+        data = await removeImageBackground(data, 36);
+      }
       const img = await fabric.FabricImage.fromURL(data);
       img.scaleToWidth(200);
       img.set({
           left: (canvas.width! / canvas.getZoom()) / 2,
           top: (canvas.height! / canvas.getZoom()) / 2,
          originX: 'center',
-         originY: 'center'
+         originY: 'center',
+         name: 'logo'
       });
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
+      saveHistory(canvas);
     };
     reader.readAsDataURL(file);
   };
@@ -754,7 +892,7 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
         (addonRect as any).addonType = type;
         (addonRect as any).addonThickness = thickness;
         canvas.add(addonRect);
-        (addonRect as any).sendToBack();
+        canvas.sendObjectToBack(addonRect);
     }
     
     canvas.renderAll();
@@ -940,53 +1078,107 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
                }} className="w-16 sm:w-20 accent-charcoal" />
             </div>
             
-            {activeObj.name === 'logo' && (
+            {(activeObj.type === 'image' || activeObj.name === 'logo' || (activeObj.type === 'group' && activeObj.name === 'logo')) && (
               <div className="flex items-center gap-2 border-r pr-4 border-gray-200 shrink-0">
-                   <button onClick={() => {
+                   <button 
+                      onClick={handleRemoveBgFromSelected} 
+                      disabled={isRemovingBg}
+                      className="px-2.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-50 rounded-lg text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                      title="Auto-remove background from this image"
+                   >
+                      <LucideWand2 className={`w-3.5 h-3.5 ${isRemovingBg ? 'animate-spin' : ''}`} />
+                      {isRemovingBg ? 'Removing...' : 'Remove BG'}
+                   </button>
+              </div>
+            )}
+
+            {activeObj.name === 'logo' && (
+              <div className="flex items-center gap-1.5 border-r pr-4 border-gray-200 shrink-0">
+                   <button onClick={async () => {
                       if (!canvas || !activeObj || !business?.logoUrl) return;
-                      activeObj.set('name', 'old-logo');
+                      const prevLeft = activeObj.left;
+                      const prevTop = activeObj.top;
+                      const prevScale = activeObj.scaleX;
                       setLogoMode('transparent');
-                      addBusinessLogo().then(() => {
-                         const objs = canvas.getObjects();
-                         const old = objs.find(o => o.name === 'old-logo');
-                         if (old) canvas.remove(old);
-                      });
-                   }} className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-[10px] font-bold">
+                      await addBusinessLogo('transparent');
+                      const active = canvas.getActiveObject();
+                      if (active) {
+                         active.set({ left: prevLeft, top: prevTop, scaleX: prevScale, scaleY: prevScale });
+                         canvas.remove(activeObj);
+                         canvas.renderAll();
+                         saveHistory(canvas);
+                      }
+                   }} className={`px-2 py-1.5 rounded text-[10px] font-bold transition-colors ${(activeObj as any).logoMode === 'transparent' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-charcoal'}`}>
                       Transparent
                    </button>
-                   <button onClick={() => {
+                   <button onClick={async () => {
                       if (!canvas || !activeObj || !business?.logoUrl) return;
-                      activeObj.set('name', 'old-logo');
+                      const prevLeft = activeObj.left;
+                      const prevTop = activeObj.top;
+                      const prevScale = activeObj.scaleX;
                       setLogoMode('block');
-                      addBusinessLogo().then(() => {
-                         const objs = canvas.getObjects();
-                         const old = objs.find(o => o.name === 'old-logo');
-                         if (old) canvas.remove(old);
-                      });
-                   }} className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-[10px] font-bold">
+                      await addBusinessLogo('block', logoBgColor);
+                      const active = canvas.getActiveObject();
+                      if (active) {
+                         active.set({ left: prevLeft, top: prevTop, scaleX: prevScale, scaleY: prevScale });
+                         canvas.remove(activeObj);
+                         canvas.renderAll();
+                         saveHistory(canvas);
+                      }
+                   }} className={`px-2 py-1.5 rounded text-[10px] font-bold transition-colors ${(activeObj as any).logoMode === 'block' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-charcoal'}`}>
                       Solid
                    </button>
-                   <button onClick={() => {
+                   <button onClick={async () => {
                       if (!canvas || !activeObj || !business?.logoUrl) return;
-                      activeObj.set('name', 'old-logo');
+                      const prevLeft = activeObj.left;
+                      const prevTop = activeObj.top;
+                      const prevScale = activeObj.scaleX;
                       setLogoMode('translucent');
-                      addBusinessLogo().then(() => {
-                         const objs = canvas.getObjects();
-                         const old = objs.find(o => o.name === 'old-logo');
-                         if (old) canvas.remove(old);
-                      });
-                   }} className="px-2 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-[10px] font-bold">
+                      await addBusinessLogo('translucent', logoBgColor);
+                      const active = canvas.getActiveObject();
+                      if (active) {
+                         active.set({ left: prevLeft, top: prevTop, scaleX: prevScale, scaleY: prevScale });
+                         canvas.remove(activeObj);
+                         canvas.renderAll();
+                         saveHistory(canvas);
+                      }
+                   }} className={`px-2 py-1.5 rounded text-[10px] font-bold transition-colors ${(activeObj as any).logoMode === 'translucent' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-charcoal'}`}>
                       Translucent
                    </button>
-                   <input type="color" className="w-6 h-6 rounded cursor-pointer" value={logoBgColor} onChange={(e) => {
+                   <button onClick={async () => {
+                      if (!canvas || !activeObj || !business?.logoUrl) return;
+                      const prevLeft = activeObj.left;
+                      const prevTop = activeObj.top;
+                      const prevScale = activeObj.scaleX;
+                      setLogoMode('circle');
+                      await addBusinessLogo('circle', logoBgColor);
+                      const active = canvas.getActiveObject();
+                      if (active) {
+                         active.set({ left: prevLeft, top: prevTop, scaleX: prevScale, scaleY: prevScale });
+                         canvas.remove(activeObj);
+                         canvas.renderAll();
+                         saveHistory(canvas);
+                      }
+                   }} className={`px-2 py-1.5 rounded text-[10px] font-bold transition-colors ${(activeObj as any).logoMode === 'circle' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-charcoal'}`}>
+                      Circle
+                   </button>
+                   <input type="color" title="Badge Color" className="w-6 h-6 rounded cursor-pointer border border-gray-300" value={logoBgColor} onChange={async (e) => {
                       setLogoBgColor(e.target.value);
                       if (!canvas || !activeObj || !business?.logoUrl) return;
-                      activeObj.set('name', 'old-logo');
-                      addBusinessLogo().then(() => {
-                         const objs = canvas.getObjects();
-                         const old = objs.find(o => o.name === 'old-logo');
-                         if (old) canvas.remove(old);
-                      });
+                      if ((activeObj as any).logoMode === 'block' || (activeObj as any).logoMode === 'translucent' || (activeObj as any).logoMode === 'circle') {
+                         const prevLeft = activeObj.left;
+                         const prevTop = activeObj.top;
+                         const prevScale = activeObj.scaleX;
+                         const currentMode = (activeObj as any).logoMode || 'block';
+                         await addBusinessLogo(currentMode, e.target.value);
+                         const active = canvas.getActiveObject();
+                         if (active) {
+                            active.set({ left: prevLeft, top: prevTop, scaleX: prevScale, scaleY: prevScale });
+                            canvas.remove(activeObj);
+                            canvas.renderAll();
+                            saveHistory(canvas);
+                         }
+                      }
                    }} />
               </div>
             )}
@@ -1202,21 +1394,33 @@ function FlyerEditor({ flyer, onClose, onSaved }: { flyer: any, onClose: () => v
                       <div className={`p-2 sm:p-3 rounded-full mb-1 sm:mb-2 ${logoMode === 'translucent' ? 'bg-blue-100' : 'bg-gray-100'}`}><LucideImage className="w-4 h-4 sm:w-5 sm:h-5 opacity-40" /></div>
                       <span className="text-[9px] sm:text-[10px] font-bold tracking-wide text-center">Translucent</span>
                    </button>
+                   <button onClick={() => setLogoMode('circle')} className={`flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px] ${logoMode === 'circle' ? 'text-blue-600' : 'text-gray-500 hover:text-charcoal'} hover:scale-105 transition-all`}>
+                      <div className={`p-2 sm:p-3 rounded-full mb-1 sm:mb-2 ${logoMode === 'circle' ? 'bg-blue-100' : 'bg-gray-100'}`}><LucideCircle className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+                      <span className="text-[9px] sm:text-[10px] font-bold tracking-wide text-center">Circle Badge</span>
+                   </button>
+                   <button onClick={() => setLogoMode('original')} className={`flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px] ${logoMode === 'original' ? 'text-blue-600' : 'text-gray-500 hover:text-charcoal'} hover:scale-105 transition-all`}>
+                      <div className={`p-2 sm:p-3 rounded-full mb-1 sm:mb-2 ${logoMode === 'original' ? 'bg-blue-100' : 'bg-gray-100'}`}><LucideImage className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" /></div>
+                      <span className="text-[9px] sm:text-[10px] font-bold tracking-wide text-center">Original</span>
+                   </button>
 
-                   {(logoMode === 'block' || logoMode === 'translucent') && (
+                   {(logoMode === 'block' || logoMode === 'translucent' || logoMode === 'circle') && (
                       <div className="flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px]">
-                          <input type="color" className="w-8 h-8 rounded cursor-pointer mb-1" value={logoBgColor} onChange={(e) => setLogoBgColor(e.target.value)} />
+                          <input type="color" className="w-8 h-8 rounded cursor-pointer mb-1 border border-gray-300" value={logoBgColor} onChange={(e) => setLogoBgColor(e.target.value)} />
                           <span className="text-[9px] sm:text-[10px] font-bold tracking-wide text-gray-500">Bg Color</span>
                       </div>
                    )}
                    
                    <div className="w-px h-10 bg-gray-200 shrink-0 mx-1"></div>
                    
-                   <button onClick={() => { addBusinessLogo(); setActiveToolMenu('main'); }} className="flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px] text-gray-500 hover:text-blue-600 hover:scale-105 transition-all">
+                   <button 
+                      onClick={async () => { await addBusinessLogo(); setActiveToolMenu('main'); }} 
+                      disabled={isRemovingBg}
+                      className="flex flex-col items-center justify-center min-w-[70px] sm:min-w-[80px] text-gray-500 hover:text-blue-600 disabled:opacity-50 hover:scale-105 transition-all"
+                   >
                       <div className="bg-blue-100 p-2 sm:p-3 rounded-full mb-1 sm:mb-2 text-blue-600">
-                          <LucideUpload className="w-4 h-4 sm:w-5 sm:h-5" />
+                          {isRemovingBg ? <LucideWand2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <LucideUpload className="w-4 h-4 sm:w-5 sm:h-5" />}
                       </div>
-                      <span className="text-[9px] sm:text-[10px] font-bold tracking-wide text-center">Add Logo</span>
+                      <span className="text-[9px] sm:text-[10px] font-bold tracking-wide text-center">{isRemovingBg ? 'Processing...' : 'Add Logo'}</span>
                    </button>
                 </>
              )}

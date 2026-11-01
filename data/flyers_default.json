@@ -1,0 +1,386 @@
+[
+  {
+    "id": "flyer_1787820580607_0",
+    "imageUrl": "/flyers/default_val_1_1787820580606_0.jpg",
+    "status": "pending_review",
+    "headline": "Delivering Tomorrow, Today.",
+    "bodyMessage": "Celebrating a special day, we reflect on shared successes and the precision that drives us forward. Our commitment ensures your future is always in motion.",
+    "signOff": "",
+    "contactInfo": "Phone: +234 800 123 4567 | Email: info@apexlogistics.com | Web: www.apexlogistics.com",
+    "typography": {
+      "bodyColor": "#1F4D43",
+      "bodyFont": "Inter Regular",
+      "headlineColor": "#E8B14A",
+      "headlineFont": "Neue Haas Unica Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T08:49:40.607Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "A sophisticated, abstract architectural composition. Interlocking geometric forms in dark teal (#1F4D43) and golden yellow (#E8B14A) create a dynamic sense of connection and movement, symbolizing a global logistics network. Clean lines, ample negative space. Bold sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Delivering Tomorrow, Today.\" rendered in a modern sans-serif typeface, bold weight, color #E8B14A. Professional, forward-looking, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "A sophisticated, abstract architectural composition. Interlocking geometric forms in dark teal (#1F4D43) and golden yellow (#E8B14A) create a dynamic sense of connection and movement, symbolizing a global logistics network. Clean lines, ample negative space. Bold sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Delivering Tomorrow, Today.\" rendered in a modern sans-serif typeface, bold weight, color #E8B14A. Professional, forward-looking, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://placehold.co/1080x1080/1F4D43/ffffff.png?text=val_1",
+        "variation": {
+          "ideogramPrompt": "A sophisticated, abstract architectural composition. Interlocking geometric forms in dark teal (#1F4D43) and golden yellow (#E8B14A) create a dynamic sense of connection and movement, symbolizing a global logistics network. Clean lines, ample negative space. Bold sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Delivering Tomorrow, Today.\" rendered in a modern sans-serif typeface, bold weight, color #E8B14A. Professional, forward-looking, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Delivering Tomorrow, Today.",
+          "bodyMessage": "Celebrating a special day, we reflect on shared successes and the precision that drives us forward. Our commitment ensures your future is always in motion.",
+          "conceptName": "Precision & Partnership",
+          "contactInfo": "Phone: +234 800 123 4567 | Email: info@apexlogistics.com | Web: www.apexlogistics.com",
+          "layoutFamily": "Grid-based",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#1F4D43",
+            "bodyFont": "Inter Regular",
+            "headlineColor": "#E8B14A",
+            "headlineFont": "Neue Haas Unica Bold"
+          }
+        },
+        "ideogramPrompt": "A sophisticated, abstract architectural composition. Interlocking geometric forms in dark teal (#1F4D43) and golden yellow (#E8B14A) create a dynamic sense of connection and movement, symbolizing a global logistics network. Clean lines, ample negative space. Bold sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Delivering Tomorrow, Today.\" rendered in a modern sans-serif typeface, bold weight, color #E8B14A. Professional, forward-looking, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "A sophisticated, abstract architectural composition. Interlocking geometric forms in dark teal (#1F4D43) and golden yellow (#E8B14A) create a dynamic sense of connection and movement, symbolizing a global logistics network. Clean lines, ample negative space. Bold sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Delivering Tomorrow, Today.\" rendered in a modern sans-serif typeface, bold weight, color #E8B14A. Professional, forward-looking, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787820580628_1",
+    "imageUrl": "/flyers/default_val_1_1787820580627_1.jpg",
+    "status": "pending_review",
+    "headline": "Charting New Horizons.",
+    "bodyMessage": "On this special day, we honor the vision and innovation propelling us forward. Together, we navigate complexities, ensuring endless possibilities for your enterprise.",
+    "signOff": "",
+    "contactInfo": "Phone: +234 800 123 4567 | Email: info@apexlogistics.com | Web: www.apexlogistics.com",
+    "typography": {
+      "bodyColor": "#F0F0F0",
+      "bodyFont": "Open Sans Light",
+      "headlineColor": "#E8B14A",
+      "headlineFont": "Roboto Slab Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T08:49:40.628Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "A minimalist, dark-themed composition. Abstract cityscape lines in deep #1F4D43 fading into shadow, intersected by bright, flowing light trails in #E8B14A, symbolizing innovation and pathways. Elegant sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Charting New Horizons.\" rendered in a refined sans-serif typeface, bold weight, color #E8B14A. Expansive, modern, ambitious. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "A minimalist, dark-themed composition. Abstract cityscape lines in deep #1F4D43 fading into shadow, intersected by bright, flowing light trails in #E8B14A, symbolizing innovation and pathways. Elegant sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Charting New Horizons.\" rendered in a refined sans-serif typeface, bold weight, color #E8B14A. Expansive, modern, ambitious. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://placehold.co/1080x1080/1F4D43/ffffff.png?text=val_1",
+        "variation": {
+          "ideogramPrompt": "A minimalist, dark-themed composition. Abstract cityscape lines in deep #1F4D43 fading into shadow, intersected by bright, flowing light trails in #E8B14A, symbolizing innovation and pathways. Elegant sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Charting New Horizons.\" rendered in a refined sans-serif typeface, bold weight, color #E8B14A. Expansive, modern, ambitious. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Charting New Horizons.",
+          "bodyMessage": "On this special day, we honor the vision and innovation propelling us forward. Together, we navigate complexities, ensuring endless possibilities for your enterprise.",
+          "conceptName": "Visionary Growth",
+          "contactInfo": "Phone: +234 800 123 4567 | Email: info@apexlogistics.com | Web: www.apexlogistics.com",
+          "layoutFamily": "Asymmetric Editorial",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#F0F0F0",
+            "bodyFont": "Open Sans Light",
+            "headlineColor": "#E8B14A",
+            "headlineFont": "Roboto Slab Bold"
+          }
+        },
+        "ideogramPrompt": "A minimalist, dark-themed composition. Abstract cityscape lines in deep #1F4D43 fading into shadow, intersected by bright, flowing light trails in #E8B14A, symbolizing innovation and pathways. Elegant sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Charting New Horizons.\" rendered in a refined sans-serif typeface, bold weight, color #E8B14A. Expansive, modern, ambitious. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "A minimalist, dark-themed composition. Abstract cityscape lines in deep #1F4D43 fading into shadow, intersected by bright, flowing light trails in #E8B14A, symbolizing innovation and pathways. Elegant sans-serif text \"Apex Logistics\" in color #E8B14A, positioned above \"Charting New Horizons.\" rendered in a refined sans-serif typeface, bold weight, color #E8B14A. Expansive, modern, ambitious. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787840072480_0",
+    "imageUrl": "/flyers/default_val_1_1787840072479_0.jpg",
+    "status": "pending_review",
+    "headline": "Elevating Tomorrow",
+    "bodyMessage": "As we reflect on a special day of progress and partnership, we extend our gratitude. Thank you for being an integral part of our journey. We look forward to achieving new heights together.",
+    "signOff": "",
+    "contactInfo": "Email: info@apexlogistics.com | Phone: +234 800 123 4567 | apexlogistics.com",
+    "typography": {
+      "bodyColor": "#1F4D43",
+      "bodyFont": "Univers Regular",
+      "headlineColor": "#E8B14A",
+      "headlineFont": "Suisse Intl Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T14:14:32.480Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "A sleek, architectural scene with intersecting metallic lines forming a subtle grid, suggesting growth and infrastructure. Muted dark teal (#1F4D43) dominates, accented by warm goldenrod light (#E8B14A) illuminating key structural elements. Centered text: \"Apex Logistics\" in clean, bold sans-serif, white. Below it, \"Elevating Tomorrow\" in a modern, slightly lighter sans-serif, goldenrod (#E8B14A). Minimalist yet impactful. Bold, modern, refined. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "A sleek, architectural scene with intersecting metallic lines forming a subtle grid, suggesting growth and infrastructure. Muted dark teal (#1F4D43) dominates, accented by warm goldenrod light (#E8B14A) illuminating key structural elements. Centered text: \"Apex Logistics\" in clean, bold sans-serif, white. Below it, \"Elevating Tomorrow\" in a modern, slightly lighter sans-serif, goldenrod (#E8B14A). Minimalist yet impactful. Bold, modern, refined. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://placehold.co/1080x1080/1F4D43/ffffff.png?text=val_1",
+        "variation": {
+          "ideogramPrompt": "A sleek, architectural scene with intersecting metallic lines forming a subtle grid, suggesting growth and infrastructure. Muted dark teal (#1F4D43) dominates, accented by warm goldenrod light (#E8B14A) illuminating key structural elements. Centered text: \"Apex Logistics\" in clean, bold sans-serif, white. Below it, \"Elevating Tomorrow\" in a modern, slightly lighter sans-serif, goldenrod (#E8B14A). Minimalist yet impactful. Bold, modern, refined. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Elevating Tomorrow",
+          "bodyMessage": "As we reflect on a special day of progress and partnership, we extend our gratitude. Thank you for being an integral part of our journey. We look forward to achieving new heights together.",
+          "conceptName": "Corporate Precision & Growth",
+          "contactInfo": "Email: info@apexlogistics.com | Phone: +234 800 123 4567 | apexlogistics.com",
+          "layoutFamily": "Geometric Grid Composition",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#1F4D43",
+            "bodyFont": "Univers Regular",
+            "headlineColor": "#E8B14A",
+            "headlineFont": "Suisse Intl Bold"
+          }
+        },
+        "ideogramPrompt": "A sleek, architectural scene with intersecting metallic lines forming a subtle grid, suggesting growth and infrastructure. Muted dark teal (#1F4D43) dominates, accented by warm goldenrod light (#E8B14A) illuminating key structural elements. Centered text: \"Apex Logistics\" in clean, bold sans-serif, white. Below it, \"Elevating Tomorrow\" in a modern, slightly lighter sans-serif, goldenrod (#E8B14A). Minimalist yet impactful. Bold, modern, refined. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "A sleek, architectural scene with intersecting metallic lines forming a subtle grid, suggesting growth and infrastructure. Muted dark teal (#1F4D43) dominates, accented by warm goldenrod light (#E8B14A) illuminating key structural elements. Centered text: \"Apex Logistics\" in clean, bold sans-serif, white. Below it, \"Elevating Tomorrow\" in a modern, slightly lighter sans-serif, goldenrod (#E8B14A). Minimalist yet impactful. Bold, modern, refined. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787840072496_1",
+    "imageUrl": "/flyers/default_val_1_1787840072495_1.jpg",
+    "status": "pending_review",
+    "headline": "Connecting Worlds",
+    "bodyMessage": "On this special occasion, we celebrate the powerful connections we forge and the distances we bridge. Your trust fuels our global ambition. Here's to continued seamless collaboration.",
+    "signOff": "",
+    "contactInfo": "Email: info@apexlogistics.com | Phone: +234 800 123 4567 | apexlogistics.com",
+    "typography": {
+      "bodyColor": "#1F4D43",
+      "bodyFont": "Helvetica Now Text Regular",
+      "headlineColor": "#E8B14A",
+      "headlineFont": "Monument Extended Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T14:14:32.496Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "An abstract, ethereal composition depicting flowing lines and soft gradients, subtly hinting at interconnected global networks. A deep teal (#1F4D43) background fades into lighter hues, with vibrant goldenrod (#E8B14A) energy pathways swirling through the composition. Prominently placed: \"Apex Logistics\" in elegant, modern serif, white. Below, \"Connecting Worlds\" in a stylish, legible sans-serif, goldenrod (#E8B14A). Clean, dynamic, sophisticated. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "An abstract, ethereal composition depicting flowing lines and soft gradients, subtly hinting at interconnected global networks. A deep teal (#1F4D43) background fades into lighter hues, with vibrant goldenrod (#E8B14A) energy pathways swirling through the composition. Prominently placed: \"Apex Logistics\" in elegant, modern serif, white. Below, \"Connecting Worlds\" in a stylish, legible sans-serif, goldenrod (#E8B14A). Clean, dynamic, sophisticated. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://placehold.co/1080x1080/1F4D43/ffffff.png?text=val_1",
+        "variation": {
+          "ideogramPrompt": "An abstract, ethereal composition depicting flowing lines and soft gradients, subtly hinting at interconnected global networks. A deep teal (#1F4D43) background fades into lighter hues, with vibrant goldenrod (#E8B14A) energy pathways swirling through the composition. Prominently placed: \"Apex Logistics\" in elegant, modern serif, white. Below, \"Connecting Worlds\" in a stylish, legible sans-serif, goldenrod (#E8B14A). Clean, dynamic, sophisticated. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Connecting Worlds",
+          "bodyMessage": "On this special occasion, we celebrate the powerful connections we forge and the distances we bridge. Your trust fuels our global ambition. Here's to continued seamless collaboration.",
+          "conceptName": "Abstract Connectivity & Momentum",
+          "contactInfo": "Email: info@apexlogistics.com | Phone: +234 800 123 4567 | apexlogistics.com",
+          "layoutFamily": "Dynamic Abstract Flow",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#1F4D43",
+            "bodyFont": "Helvetica Now Text Regular",
+            "headlineColor": "#E8B14A",
+            "headlineFont": "Monument Extended Bold"
+          }
+        },
+        "ideogramPrompt": "An abstract, ethereal composition depicting flowing lines and soft gradients, subtly hinting at interconnected global networks. A deep teal (#1F4D43) background fades into lighter hues, with vibrant goldenrod (#E8B14A) energy pathways swirling through the composition. Prominently placed: \"Apex Logistics\" in elegant, modern serif, white. Below, \"Connecting Worlds\" in a stylish, legible sans-serif, goldenrod (#E8B14A). Clean, dynamic, sophisticated. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "An abstract, ethereal composition depicting flowing lines and soft gradients, subtly hinting at interconnected global networks. A deep teal (#1F4D43) background fades into lighter hues, with vibrant goldenrod (#E8B14A) energy pathways swirling through the composition. Prominently placed: \"Apex Logistics\" in elegant, modern serif, white. Below, \"Connecting Worlds\" in a stylish, legible sans-serif, goldenrod (#E8B14A). Clean, dynamic, sophisticated. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787840372044_0",
+    "imageUrl": "/flyers/default_val_1_1787840372043_0.jpg",
+    "status": "pending_review",
+    "headline": "Charting New Heights",
+    "bodyMessage": "Today, we celebrate the milestones achieved through your trust and our relentless dedication. We're proud to navigate the path forward with precision, delivering excellence every step of the way.",
+    "signOff": "",
+    "contactInfo": "Apex Logistics. Reach out to us at info@apexlogistics.com or call +234 800 123 4567. Visit us at apexlogistics.com.",
+    "typography": {
+      "bodyColor": "#333333",
+      "bodyFont": "Open Sans Regular",
+      "headlineColor": "#1F4D43",
+      "headlineFont": "Montserrat Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T14:19:32.044Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "A visually striking, minimalist abstract graphic design featuring intersecting lines and geometric shapes forming a dynamic, upward-moving arrow motif against a clean white background. The composition emphasizes precision and progress. Dominant colors are the brand color #1F4D43 (dark teal) and accent color #E8B14A (golden yellow), with subtle gradient transitions. Rendered text: \"Apex Logistics\" in bold Montserrat, dark teal, and \"Charting New Heights\" in bold Montserrat, golden yellow. Clean, modern aesthetic, sharp lines. Confident, modern, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "A visually striking, minimalist abstract graphic design featuring intersecting lines and geometric shapes forming a dynamic, upward-moving arrow motif against a clean white background. The composition emphasizes precision and progress. Dominant colors are the brand color #1F4D43 (dark teal) and accent color #E8B14A (golden yellow), with subtle gradient transitions. Rendered text: \"Apex Logistics\" in bold Montserrat, dark teal, and \"Charting New Heights\" in bold Montserrat, golden yellow. Clean, modern aesthetic, sharp lines. Confident, modern, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://placehold.co/1080x1080/1F4D43/ffffff.png?text=val_1",
+        "variation": {
+          "ideogramPrompt": "A visually striking, minimalist abstract graphic design featuring intersecting lines and geometric shapes forming a dynamic, upward-moving arrow motif against a clean white background. The composition emphasizes precision and progress. Dominant colors are the brand color #1F4D43 (dark teal) and accent color #E8B14A (golden yellow), with subtle gradient transitions. Rendered text: \"Apex Logistics\" in bold Montserrat, dark teal, and \"Charting New Heights\" in bold Montserrat, golden yellow. Clean, modern aesthetic, sharp lines. Confident, modern, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Charting New Heights",
+          "bodyMessage": "Today, we celebrate the milestones achieved through your trust and our relentless dedication. We're proud to navigate the path forward with precision, delivering excellence every step of the way.",
+          "conceptName": "Precision & Progress",
+          "contactInfo": "Apex Logistics. Reach out to us at info@apexlogistics.com or call +234 800 123 4567. Visit us at apexlogistics.com.",
+          "layoutFamily": "Grid-based, structured",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#333333",
+            "bodyFont": "Open Sans Regular",
+            "headlineColor": "#1F4D43",
+            "headlineFont": "Montserrat Bold"
+          }
+        },
+        "ideogramPrompt": "A visually striking, minimalist abstract graphic design featuring intersecting lines and geometric shapes forming a dynamic, upward-moving arrow motif against a clean white background. The composition emphasizes precision and progress. Dominant colors are the brand color #1F4D43 (dark teal) and accent color #E8B14A (golden yellow), with subtle gradient transitions. Rendered text: \"Apex Logistics\" in bold Montserrat, dark teal, and \"Charting New Heights\" in bold Montserrat, golden yellow. Clean, modern aesthetic, sharp lines. Confident, modern, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "A visually striking, minimalist abstract graphic design featuring intersecting lines and geometric shapes forming a dynamic, upward-moving arrow motif against a clean white background. The composition emphasizes precision and progress. Dominant colors are the brand color #1F4D43 (dark teal) and accent color #E8B14A (golden yellow), with subtle gradient transitions. Rendered text: \"Apex Logistics\" in bold Montserrat, dark teal, and \"Charting New Heights\" in bold Montserrat, golden yellow. Clean, modern aesthetic, sharp lines. Confident, modern, precise. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787840372060_1",
+    "imageUrl": "/flyers/default_val_1_1787840372058_1.jpg",
+    "status": "pending_review",
+    "headline": "Connecting What Matters",
+    "bodyMessage": "On this special day, we honor the intricate network that binds us and the vital connections we forge. Thank you for being an essential part of our journey, as we continue to move the world together.",
+    "signOff": "",
+    "contactInfo": "Apex Logistics. Reach out to us at info@apexlogistics.com or call +234 800 123 4567. Visit us at apexlogistics.com.",
+    "typography": {
+      "bodyColor": "#333333",
+      "bodyFont": "Lato Light",
+      "headlineColor": "#E8B14A",
+      "headlineFont": "Lato Black"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T14:19:32.060Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "An elegant and expansive graphic design, featuring a subtle, stylized world map outline with interconnected glowing lines emanating from Abuja, Nigeria, symbolizing global reach and communication. The background is a sophisticated gradient from a soft, muted grey to light cream. Brand color #1F4D43 (dark teal) is used for the map lines, and accent color #E8B14A (golden yellow) for the glowing connections. Rendered text: \"Apex Logistics\" in elegant sans-serif Lato Black, dark teal, and \"Connecting What Matters\" in Lato Black, golden yellow, placed centrally with generous negative space. Sophisticated, interconnected, vast. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "An elegant and expansive graphic design, featuring a subtle, stylized world map outline with interconnected glowing lines emanating from Abuja, Nigeria, symbolizing global reach and communication. The background is a sophisticated gradient from a soft, muted grey to light cream. Brand color #1F4D43 (dark teal) is used for the map lines, and accent color #E8B14A (golden yellow) for the glowing connections. Rendered text: \"Apex Logistics\" in elegant sans-serif Lato Black, dark teal, and \"Connecting What Matters\" in Lato Black, golden yellow, placed centrally with generous negative space. Sophisticated, interconnected, vast. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://placehold.co/1080x1080/1F4D43/ffffff.png?text=val_1",
+        "variation": {
+          "ideogramPrompt": "An elegant and expansive graphic design, featuring a subtle, stylized world map outline with interconnected glowing lines emanating from Abuja, Nigeria, symbolizing global reach and communication. The background is a sophisticated gradient from a soft, muted grey to light cream. Brand color #1F4D43 (dark teal) is used for the map lines, and accent color #E8B14A (golden yellow) for the glowing connections. Rendered text: \"Apex Logistics\" in elegant sans-serif Lato Black, dark teal, and \"Connecting What Matters\" in Lato Black, golden yellow, placed centrally with generous negative space. Sophisticated, interconnected, vast. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Connecting What Matters",
+          "bodyMessage": "On this special day, we honor the intricate network that binds us and the vital connections we forge. Thank you for being an essential part of our journey, as we continue to move the world together.",
+          "conceptName": "Global Connections",
+          "contactInfo": "Apex Logistics. Reach out to us at info@apexlogistics.com or call +234 800 123 4567. Visit us at apexlogistics.com.",
+          "layoutFamily": "Asymmetric balance, editorial",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#333333",
+            "bodyFont": "Lato Light",
+            "headlineColor": "#E8B14A",
+            "headlineFont": "Lato Black"
+          }
+        },
+        "ideogramPrompt": "An elegant and expansive graphic design, featuring a subtle, stylized world map outline with interconnected glowing lines emanating from Abuja, Nigeria, symbolizing global reach and communication. The background is a sophisticated gradient from a soft, muted grey to light cream. Brand color #1F4D43 (dark teal) is used for the map lines, and accent color #E8B14A (golden yellow) for the glowing connections. Rendered text: \"Apex Logistics\" in elegant sans-serif Lato Black, dark teal, and \"Connecting What Matters\" in Lato Black, golden yellow, placed centrally with generous negative space. Sophisticated, interconnected, vast. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "An elegant and expansive graphic design, featuring a subtle, stylized world map outline with interconnected glowing lines emanating from Abuja, Nigeria, symbolizing global reach and communication. The background is a sophisticated gradient from a soft, muted grey to light cream. Brand color #1F4D43 (dark teal) is used for the map lines, and accent color #E8B14A (golden yellow) for the glowing connections. Rendered text: \"Apex Logistics\" in elegant sans-serif Lato Black, dark teal, and \"Connecting What Matters\" in Lato Black, golden yellow, placed centrally with generous negative space. Sophisticated, interconnected, vast. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787840436842_0",
+    "imageUrl": "/flyers/default_val_1_1787840436841_0.jpg",
+    "status": "pending_review",
+    "headline": "Visionary Milestones",
+    "bodyMessage": "Today, we celebrate not just a moment, but the journey of collective achievement and unwavering dedication. Thank you for making Apex Logistics a leader in delivering beyond expectations.",
+    "signOff": "",
+    "contactInfo": "Visit apexlogistics.com | Email: info@apexlogistics.com | Phone: +234 800 APEXLOG",
+    "typography": {
+      "bodyColor": "#333333",
+      "bodyFont": "Inter Regular",
+      "headlineColor": "#1F4D43",
+      "headlineFont": "Inter Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T14:20:36.842Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "A sophisticated, clean architectural shot of a modern, sleek building facade at sunrise, with strong vertical lines and geometric precision. The light casts long, dramatic shadows. Corporate, aspirational mood, with deep forest green (#1F4D43) hues and golden yellow (#E8B14A) highlights. 'Apex Logistics' in Montserrat Bold #1F4D43. 'Visionary Milestones' in Inter Medium #E8B14A. Minimalist abstract lines suggesting growth. Elegant, ambitious, pristine. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "A sophisticated, clean architectural shot of a modern, sleek building facade at sunrise, with strong vertical lines and geometric precision. The light casts long, dramatic shadows. Corporate, aspirational mood, with deep forest green (#1F4D43) hues and golden yellow (#E8B14A) highlights. 'Apex Logistics' in Montserrat Bold #1F4D43. 'Visionary Milestones' in Inter Medium #E8B14A. Minimalist abstract lines suggesting growth. Elegant, ambitious, pristine. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://image.pollinations.ai/prompt/A%20sophisticated%2C%20clean%20architectural%20shot%20of%20a%20modern%2C%20sleek%20building%20facade%20at%20sunrise%2C%20with%20strong%20vertical%20lines%20and%20geometric%20precision.%20The%20light%20casts%20long%2C%20dramatic%20shadows.%20Corporate%2C%20aspirational%20mood%2C%20with%20deep%20forest%20green%20(%231F4D43)%20hues%20and%20golden%20yellow%20(%23E8B14A)%20highlights.%20'Apex%20Logistics'%20in%20Montserrat%20Bold%20%231F4D43.%20'Visionary%20Milestones'%20in%20Inter%20Medium%20%23E8B14A.%20Minimalist%20abstract%20lines%20suggesting%20growth.%20Elegant%2C%20ambitious%2C%20pristine.%20Ultra%20high%20quality%2C%20print-ready%20graphic%20design.%20No%20watermarks%2C%20no%20placeholder%20logos.?width=1080&height=1080&nologo=true",
+        "variation": {
+          "ideogramPrompt": "A sophisticated, clean architectural shot of a modern, sleek building facade at sunrise, with strong vertical lines and geometric precision. The light casts long, dramatic shadows. Corporate, aspirational mood, with deep forest green (#1F4D43) hues and golden yellow (#E8B14A) highlights. 'Apex Logistics' in Montserrat Bold #1F4D43. 'Visionary Milestones' in Inter Medium #E8B14A. Minimalist abstract lines suggesting growth. Elegant, ambitious, pristine. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Visionary Milestones",
+          "bodyMessage": "Today, we celebrate not just a moment, but the journey of collective achievement and unwavering dedication. Thank you for making Apex Logistics a leader in delivering beyond expectations.",
+          "conceptName": "Corporate Ascension",
+          "contactInfo": "Visit apexlogistics.com | Email: info@apexlogistics.com | Phone: +234 800 APEXLOG",
+          "layoutFamily": "Grid-based, structured",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#333333",
+            "bodyFont": "Inter Regular",
+            "headlineColor": "#1F4D43",
+            "headlineFont": "Inter Bold"
+          }
+        },
+        "ideogramPrompt": "A sophisticated, clean architectural shot of a modern, sleek building facade at sunrise, with strong vertical lines and geometric precision. The light casts long, dramatic shadows. Corporate, aspirational mood, with deep forest green (#1F4D43) hues and golden yellow (#E8B14A) highlights. 'Apex Logistics' in Montserrat Bold #1F4D43. 'Visionary Milestones' in Inter Medium #E8B14A. Minimalist abstract lines suggesting growth. Elegant, ambitious, pristine. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "A sophisticated, clean architectural shot of a modern, sleek building facade at sunrise, with strong vertical lines and geometric precision. The light casts long, dramatic shadows. Corporate, aspirational mood, with deep forest green (#1F4D43) hues and golden yellow (#E8B14A) highlights. 'Apex Logistics' in Montserrat Bold #1F4D43. 'Visionary Milestones' in Inter Medium #E8B14A. Minimalist abstract lines suggesting growth. Elegant, ambitious, pristine. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  },
+  {
+    "id": "flyer_1787840481690_1",
+    "imageUrl": "/flyers/default_val_1_1787840481690_1.jpg",
+    "status": "pending_review",
+    "headline": "Connecting Futures",
+    "bodyMessage": "We honor the invaluable connections forged and the pathways opened by our dedicated team. This special day marks our commitment to innovation and seamless delivery for tomorrow.",
+    "signOff": "",
+    "contactInfo": "Visit apexlogistics.com | Email: info@apexlogistics.com | Phone: +234 800 APEXLOG",
+    "typography": {
+      "bodyColor": "#444444",
+      "bodyFont": "Lora Regular",
+      "headlineColor": "#E8B14A",
+      "headlineFont": "Playfair Display Bold"
+    },
+    "greetingMessage": "Greeting not found",
+    "occasionName": "val_1",
+    "createdAt": "2026-08-27T14:21:21.690Z",
+    "flyerData": {
+      "width": 800,
+      "height": 1000
+    },
+    "debug": {
+      "geminiPrompt": "An abstract, interconnected network of glowing lines and subtle geometric shapes, flowing across a dark, deep green (#1F4D43) background, symbolizing global logistics and data flow. Luminous golden yellow (#E8B14A) lines contrast against the deep green. 'Apex Logistics' in Playfair Display Semibold #E8B14A. 'Connecting Futures' in Montserrat Light #FFFFFF. Subtle ethereal light effects, digital grid patterns. Dynamic, expansive, visionary. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "magicPrompt": "An abstract, interconnected network of glowing lines and subtle geometric shapes, flowing across a dark, deep green (#1F4D43) background, symbolizing global logistics and data flow. Luminous golden yellow (#E8B14A) lines contrast against the deep green. 'Apex Logistics' in Playfair Display Semibold #E8B14A. 'Connecting Futures' in Montserrat Light #FFFFFF. Subtle ethereal light effects, digital grid patterns. Dynamic, expansive, visionary. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+      "usedModel": "Gemini (gemini-2.5-flash)",
+      "ideogramResponse": {
+        "url": "https://image.pollinations.ai/prompt/An%20abstract%2C%20interconnected%20network%20of%20glowing%20lines%20and%20subtle%20geometric%20shapes%2C%20flowing%20across%20a%20dark%2C%20deep%20green%20(%231F4D43)%20background%2C%20symbolizing%20global%20logistics%20and%20data%20flow.%20Luminous%20golden%20yellow%20(%23E8B14A)%20lines%20contrast%20against%20the%20deep%20green.%20'Apex%20Logistics'%20in%20Playfair%20Display%20Semibold%20%23E8B14A.%20'Connecting%20Futures'%20in%20Montserrat%20Light%20%23FFFFFF.%20Subtle%20ethereal%20light%20effects%2C%20digital%20grid%20patterns.%20Dynamic%2C%20expansive%2C%20visionary.%20Ultra%20high%20quality%2C%20print-ready%20graphic%20design.%20No%20watermarks%2C%20no%20placeholder%20logos.?width=1080&height=1080&nologo=true",
+        "variation": {
+          "ideogramPrompt": "An abstract, interconnected network of glowing lines and subtle geometric shapes, flowing across a dark, deep green (#1F4D43) background, symbolizing global logistics and data flow. Luminous golden yellow (#E8B14A) lines contrast against the deep green. 'Apex Logistics' in Playfair Display Semibold #E8B14A. 'Connecting Futures' in Montserrat Light #FFFFFF. Subtle ethereal light effects, digital grid patterns. Dynamic, expansive, visionary. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+          "headline": "Connecting Futures",
+          "bodyMessage": "We honor the invaluable connections forged and the pathways opened by our dedicated team. This special day marks our commitment to innovation and seamless delivery for tomorrow.",
+          "conceptName": "Global Weave",
+          "contactInfo": "Visit apexlogistics.com | Email: info@apexlogistics.com | Phone: +234 800 APEXLOG",
+          "layoutFamily": "Dynamic, flowing lines",
+          "signOff": "",
+          "typography": {
+            "bodyColor": "#444444",
+            "bodyFont": "Lora Regular",
+            "headlineColor": "#E8B14A",
+            "headlineFont": "Playfair Display Bold"
+          }
+        },
+        "ideogramPrompt": "An abstract, interconnected network of glowing lines and subtle geometric shapes, flowing across a dark, deep green (#1F4D43) background, symbolizing global logistics and data flow. Luminous golden yellow (#E8B14A) lines contrast against the deep green. 'Apex Logistics' in Playfair Display Semibold #E8B14A. 'Connecting Futures' in Montserrat Light #FFFFFF. Subtle ethereal light effects, digital grid patterns. Dynamic, expansive, visionary. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos.",
+        "magicPrompt": "An abstract, interconnected network of glowing lines and subtle geometric shapes, flowing across a dark, deep green (#1F4D43) background, symbolizing global logistics and data flow. Luminous golden yellow (#E8B14A) lines contrast against the deep green. 'Apex Logistics' in Playfair Display Semibold #E8B14A. 'Connecting Futures' in Montserrat Light #FFFFFF. Subtle ethereal light effects, digital grid patterns. Dynamic, expansive, visionary. Ultra high quality, print-ready graphic design. No watermarks, no placeholder logos."
+      },
+      "logoPlacement": null
+    }
+  }
+]

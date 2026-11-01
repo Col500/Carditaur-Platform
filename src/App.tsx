@@ -1,8 +1,11 @@
 import { AdminFlyers } from './components/AdminFlyers';
+import { PromptAndReferenceLibrary } from './components/PromptAndReferenceLibrary';
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { TemplateDebugger } from "./components/TemplateDebugger";
 import { ScalingIframe } from "./components/ScalingIframe";
+import { OnboardingWizardModal } from "./components/OnboardingWizardModal";
+import { PostApprovalEngagementModal } from "./components/PostApprovalEngagementModal";
 import {
   RecommendationService,
   BusinessProfile,
@@ -16,6 +19,7 @@ import {
   Building2,
   MapPin,
   Check,
+  CheckCircle2,
   Globe,
   Palette,
   Eye,
@@ -71,7 +75,20 @@ interface Occasion {
   mandatory?: boolean;
 }
 
-const CORE_EVENTS = ["christmas", "new_years_day", "valentines_day", "easter_sunday", "democracy_day", "nigeria_independence_day"];
+export const CORE_EVENTS = [
+  "new_years_day",
+  "good_friday",
+  "easter_sunday",
+  "easter_monday",
+  "eid_al_fitr",
+  "workers_day_labour_day",
+  "democracy_day",
+  "eid_al_adha",
+  "mawlid_prophets_birthday",
+  "nigeria_independence_day",
+  "christmas",
+  "boxing_day"
+];
 
 interface Business {
   id: string;
@@ -93,6 +110,9 @@ interface Business {
     date: string;
     type: "birthday" | "anniversary" | "other";
     notes?: string;
+    isAnnual?: boolean;
+    personImages?: string[];
+    optOutImages?: boolean;
   }[];
   phone?: string;
   email?: string;
@@ -422,6 +442,39 @@ export default function App() {
   // App Core State
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [occasions, setOccasions] = useState<Occasion[]>([]);
+  const [upcomingEventNotification, setUpcomingEventNotification] = useState<{business: Business, event: any, days: number} | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || businesses.length === 0) return;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    let found = null;
+    for (const b of businesses) {
+        if (!b.customEvents) continue;
+        for (const evt of b.customEvents) {
+            if (evt.optOutImages || (evt.personImages && evt.personImages.length > 0)) continue;
+            
+            let evtDateStr = evt.date;
+            let evtDate;
+            if (evtDateStr.length === 5) {
+                evtDate = new Date(`${today.getFullYear()}-${evtDateStr}`);
+                evtDate.setHours(0,0,0,0);
+                if (evtDate < today) evtDate.setFullYear(today.getFullYear() + 1);
+            } else {
+                evtDate = new Date(evtDateStr);
+                evtDate.setHours(0,0,0,0);
+                if (evt.isAnnual && evtDate < today) evtDate.setFullYear(today.getFullYear() + 1);
+            }
+            const diffDays = Math.ceil((evtDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 0 && diffDays <= 7) {
+                found = { business: b, event: evt, days: diffDays };
+                break;
+            }
+        }
+        if (found) break;
+    }
+    setUpcomingEventNotification(found);
+  }, [businesses, isAuthenticated]);
 
   // Compute the current season dynamically in real-time based on system date
   const currentSeasonName = React.useMemo(() => {
@@ -487,10 +540,26 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingPhase, setLoadingPhase] = useState<string>("");
   const [generatedFlyers, setGeneratedFlyers] = useState<FlyerResponse[]>([]);
+  const MAX_CREDITS = 51;
   const [creditsUsed, setCreditsUsed] = useState<number>(() => {
-    return parseInt(localStorage.getItem('carditaur_credits_used') || '0', 10);
+    const topupKey = 'carditaur_credits_topup_v3';
+    let stored = parseInt(localStorage.getItem('carditaur_credits_used') || '0', 10);
+    if (!localStorage.getItem(topupKey)) {
+      localStorage.setItem(topupKey, 'true');
+      stored = Math.max(0, stored - 25);
+      localStorage.setItem('carditaur_credits_used', stored.toString());
+    }
+    return stored;
   });
-  const MAX_CREDITS = 26;
+
+  const handleTopupCredits = () => {
+    setCreditsUsed((prev) => {
+      const next = Math.max(0, prev - 25);
+      localStorage.setItem('carditaur_credits_used', next.toString());
+      return next;
+    });
+    showToast("Added 25 credits to your account!", "success");
+  };
   const [currentFlyerIndex, setCurrentFlyerIndex] = useState(0);
   const [isFullscreenMode, setIsFullscreenMode] = useState<boolean>(false);
   const [showSizeBadge, setShowSizeBadge] = useState<boolean>(true);
@@ -500,6 +569,7 @@ export default function App() {
   const [usedModel, setUsedModel] = useState<string>("");
   const [flyerZoom, setFlyerZoom] = useState<number>(1);
   const [captionCopied, setCaptionCopied] = useState<boolean>(false);
+  const [showPostApprovalModal, setShowPostApprovalModal] = useState<boolean>(false);
 
   // Profile Form States
   const [signupSuccessBiz, setSignupSuccessBiz] = useState<Business | null>(
@@ -1305,6 +1375,306 @@ export default function App() {
     }
   };
 
+  // Helper to identify if an occasion is highly relevant but unsubscribed for a business/onboarding country list
+  const isOccasionHighlyRelevant = (
+    occ: Occasion,
+    selectedCountries: string[],
+  ): boolean => {
+    if (!occ.countries || occ.countries.length === 0) return false;
+    return occ.countries.some(
+      (c) =>
+        selectedCountries.includes(c) &&
+        c !== "International" &&
+        c !== "Custom",
+    );
+  };
+
+  const getOccasionDescription = (occ: Occasion) => {
+    const name = occ.name;
+    const countriesStr = occ.countries?.join(", ") || "Global";
+    const keywordStr =
+      occ.imageKeywords?.slice(0, 3).join(", ") || "festive visuals";
+    const elemStr =
+      occ.designElements?.slice(0, 2).join(" and ") || "elegant boundaries";
+
+    let extraRelevance = "";
+    if (occ.countries?.includes("India")) {
+      extraRelevance =
+        " Subscribe to this if you have clients, employees, or partners in India or of Indian heritage.";
+    } else if (occ.countries?.includes("Nigeria")) {
+      extraRelevance =
+        " Essential for businesses operating in Nigeria or engaging with the West African diaspora.";
+    } else if (occ.countries?.includes("United States")) {
+      extraRelevance =
+        " highly recommended for US-focused operations, regional campaigns, and local community outreach.";
+    } else if (occ.countries?.includes("United Kingdom")) {
+      extraRelevance =
+        " Recommended if you coordinate with British audiences or partners based in the UK.";
+    } else if (occ.category === "international") {
+      extraRelevance =
+        " A versatile occasion to foster global team unity and brand awareness across international partners.";
+    } else {
+      extraRelevance = ` Strong choice for targeting relationships in ${countriesStr}.`;
+    }
+
+    return `This seasonal event centers on ${name}, bringing people together with visual themes of ${keywordStr} set against ${elemStr}.${extraRelevance}`;
+  };
+
+  interface DisplayEvent {
+    id: string;
+    name: string;
+    type: string; // 'holiday' | 'birthday' | 'anniversary' | 'other'
+    dateLabel: string;
+    unixTime?: number;
+    isHighlyRelevant?: boolean;
+  }
+
+  const getUpcomingEventsList = (biz: Business): DisplayEvent[] => {
+    const list: DisplayEvent[] = [];
+    const today = new Date();
+    const twoWeeksLater = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const currentYear = today.getFullYear();
+
+    // 1. Process custom profile events (Birthdays, Anniversaries, etc.)
+    if (biz.customEvents && biz.customEvents.length > 0) {
+      biz.customEvents.forEach((evt) => {
+        const parts = evt.date.split("-");
+        let m = 0,
+          d = 0;
+        if (parts.length === 3) {
+          m = parseInt(parts[1], 10);
+          d = parseInt(parts[2], 10);
+        } else if (parts.length === 2) {
+          m = parseInt(parts[0], 10);
+          d = parseInt(parts[1], 10);
+        }
+        if (m > 0 && d > 0) {
+          let evtDate = new Date(currentYear, m - 1, d);
+          // If already past in the current year, check if next year fits
+          if (
+            evtDate < today &&
+            (today.getMonth() !== m - 1 || today.getDate() !== d)
+          ) {
+            evtDate = new Date(currentYear + 1, m - 1, d);
+          }
+          if (evtDate >= today && evtDate <= twoWeeksLater) {
+            list.push({
+              id: evt.id,
+              name: evt.name,
+              type: evt.type,
+              dateLabel: `${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`,
+              unixTime: evtDate.getTime(),
+            });
+          }
+        }
+      });
+    }
+
+    // 2. Process subscribed official occasions
+    if (biz.subscribedOccasions && biz.subscribedOccasions.length > 0) {
+      occasions
+        .filter((occ) => biz.subscribedOccasions.includes(occ.id))
+        .forEach((occ) => {
+          let mStr = resolveDynamicDateStr(occ.id, occ.date) || "";
+          let evtDate: Date | null = null;
+          if (mStr) {
+            const parts = mStr.split("-");
+            if (parts.length === 2) {
+              const m = parseInt(parts[0], 10);
+              const d = parseInt(parts[1], 10);
+              evtDate = new Date(currentYear, m - 1, d);
+              if (
+                evtDate < today &&
+                (today.getMonth() !== m - 1 || today.getDate() !== d)
+              ) {
+                evtDate = new Date(currentYear + 1, m - 1, d);
+              }
+            }
+          }
+
+          const isHighlyRelevant = isOccasionHighlyRelevant(
+            occ,
+            biz.countries || [],
+          );
+
+          if (evtDate) {
+            if (evtDate >= today && evtDate <= twoWeeksLater) {
+              list.push({
+                id: occ.id,
+                name: occ.name,
+                type: "holiday",
+                dateLabel: mStr,
+                unixTime: evtDate.getTime(),
+                isHighlyRelevant,
+              });
+            }
+          } else {
+            // Seasonal / No exact date: Add to list if we are close to when dates will be announced
+            const isClose =
+              isHighlyRelevant ||
+              occ.id === "occ-fathers-day" ||
+              occ.id === "occ-democracy-day-ng" ||
+              occ.id === "occ-islamic-new-year";
+            if (isClose) {
+              list.push({
+                id: occ.id,
+                name: occ.name,
+                type: "holiday",
+                dateLabel: "Date TBD",
+                unixTime: today.getTime() + 6 * 24 * 60 * 60 * 1000,
+                isHighlyRelevant,
+              });
+            }
+          }
+        });
+    }
+
+    // Chronological order
+    list.sort((a, b) => (a.unixTime || 0) - (b.unixTime || 0));
+    return list.slice(0, 5);
+  };
+
+  // Google Accounts notification style upcoming occurrences counter
+  const getUpcomingOccasionsCount = (biz: Business): number => {
+    if (!biz) return 0;
+    const activeCountries = biz.countries || ["Nigeria"];
+    let count = 0;
+    const today = new Date();
+    const currentWindowStart = today.getTime();
+    const currentWindowEnd = today.getTime() + 45 * 24 * 60 * 60 * 1000;
+    const currentYear = today.getFullYear();
+
+    occasions.forEach((occ) => {
+      const matchCountry =
+        occ.countries?.some((c) => activeCountries.includes(c)) ||
+        occ.countries?.includes("International") ||
+        occ.countries?.includes("international");
+      if (!matchCountry) return;
+
+      let m = -1,
+        d = -1;
+      const resolvedDateStr = resolveDynamicDateStr(occ.id, occ.date);
+      if (resolvedDateStr) {
+        const [mStr, dStr] = resolvedDateStr.split("-");
+        m = parseInt(mStr);
+        d = parseInt(dStr);
+      }
+
+      if (m !== -1 && d !== -1) {
+        let evtDate = new Date(currentYear, m - 1, d);
+        if (
+          evtDate.getTime() < currentWindowStart &&
+          (today.getMonth() !== m - 1 || today.getDate() !== d)
+        ) {
+          evtDate = new Date(currentYear + 1, m - 1, d);
+        }
+        if (
+          evtDate.getTime() >= currentWindowStart &&
+          evtDate.getTime() <= currentWindowEnd
+        ) {
+          count++;
+        }
+      }
+    });
+    return count > 0 ? count : 3; // Fallback to 3 if zero, guaranteeing active engagement notifications
+  };
+
+  // List next 4 upcoming occasions starting from the real current date
+  const getUpcomingOccasionsList = (biz: Business): Occasion[] => {
+    if (!biz) return [];
+    const activeCountries = biz.countries || ["Nigeria"];
+
+    // Filter of subscribed or matched country occasions
+    const filtered = occasions.filter((occ) => {
+      if (occ.enabled === false) return false;
+      const isSubscribed = biz.subscribedOccasions?.includes(occ.id);
+      if (biz.subscribedOccasions && biz.subscribedOccasions.length > 0) {
+        return isSubscribed;
+      }
+      const matchCountry =
+        occ.countries?.some((c) => activeCountries.includes(c)) ||
+        occ.countries?.includes("International") ||
+        occ.countries?.includes("international");
+      return matchCountry;
+    });
+
+    // Also inject custom events!
+    const customOccasions: Occasion[] = (biz.customEvents || []).map((evt) => {
+      let dateStr = evt.date;
+      if (evt.date.length === 10) {
+        const parts = evt.date.split("-");
+        dateStr = `${parts[1]}-${parts[2]}`;
+      } else if (evt.date.length === 5 && evt.date.includes("-")) {
+        dateStr = evt.date;
+      }
+      return {
+        id: evt.id,
+        name: evt.name,
+        date: dateStr,
+        category: "custom",
+        is_dynamic_date: false,
+        countries: ["International"],
+        theme:
+          evt.type === "birthday"
+            ? "Family & Childcare"
+            : evt.type === "anniversary"
+              ? "Heritage & Culture"
+              : "Creative Trends",
+        enabled: true,
+        imageKeywords:
+          evt.type === "birthday"
+            ? ["birthday", "cake", "celebration"]
+            : evt.type === "anniversary"
+              ? ["anniversary", "gifts", "celebration"]
+              : ["celebration"],
+        designElements: ["Abstract shapes"],
+        suggestedColors: [
+          biz.brandColor || "#E52B50",
+          biz.accentColor || "#45B1E8",
+        ],
+      };
+    });
+
+    const merged = [...filtered, ...customOccasions];
+    const today = new Date();
+
+    const getMonthDay = (occ: Occasion) => {
+      const resolvedDateStr = resolveDynamicDateStr(occ.id, occ.date);
+      if (!resolvedDateStr) return { m: 12, d: 31 };
+      const parts = resolvedDateStr.split("-");
+      const mStr = parts[0];
+      const dStr = parts[1] || parts[0];
+      return { m: parseInt(mStr) || 12, d: parseInt(dStr) || 31 };
+    };
+
+    const sortedWithRealDays = merged.map((occ) => {
+      const dInfo = getMonthDay(occ);
+      const year = today.getFullYear();
+
+      // Let's create candidate dates: this year, and next year (in case it has already passed this year)
+      let occDate = new Date(year, dInfo.m - 1, dInfo.d);
+      // If it passed this year, the next occurrence is next year
+      if (occDate.getTime() < today.getTime() - 24 * 60 * 60 * 1000) {
+        // permit today
+        occDate = new Date(year + 1, dInfo.m - 1, dInfo.d);
+      }
+
+      const diffMs = occDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      return { occ, diffDays };
+    });
+
+    // Keep ONLY occasions that are within the next 3 weeks (between 0 and 21 days inclusive!)
+    const filteredByThreeWeeks = sortedWithRealDays.filter(
+      (item) => item.diffDays >= 0 && item.diffDays <= 21,
+    );
+
+    // Sort by diffDays ascending
+    filteredByThreeWeeks.sort((a, b) => a.diffDays - b.diffDays);
+
+    return filteredByThreeWeeks.map((item) => item.occ);
+  };
+
   const activeBiz =
     businesses.find((b) => b.id === selectedBusinessId) || businesses[0];
   const activeOccasion =
@@ -1333,6 +1703,20 @@ export default function App() {
         enabled: true,
       };
     })();
+
+  const upcomingNextOccasion = React.useMemo(() => {
+    if (!activeBiz) return null;
+    const list = getUpcomingEventsList(activeBiz);
+    if (!list || list.length === 0) return null;
+    const next = list[0];
+    const today = new Date();
+    const daysLeft = Math.max(1, Math.ceil(((next.unixTime || today.getTime()) - today.getTime()) / (1000 * 60 * 60 * 24)));
+    return {
+      name: next.name,
+      dateStr: next.dateLabel || 'Upcoming',
+      daysLeft,
+    };
+  }, [activeBiz, occasions]);
 
   // Reference to current abort controller to cancel previous requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -1456,7 +1840,9 @@ export default function App() {
            return next;
         });
       } else {
-        alert("Server returned an error generating the flyer. Check logs.");
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error || "Server returned an error generating the flyer. Please check that your API keys are configured.";
+        showToast(errorMessage, "error");
       }
     } catch (err: any) {
       clearInterval(interval);
@@ -1466,7 +1852,7 @@ export default function App() {
         return; // Don't turn off loading state, another request is handling it
       }
       console.error("Network generation error:", err);
-      alert("Network pipeline interrupted.");
+      showToast("Network pipeline interrupted: " + (err.message || "Unknown error"), "error");
     } finally {
       if (abortControllerRef.current === abortController) {
          setLoading(false);
@@ -1911,306 +2297,6 @@ export default function App() {
     setNewBizSubscribed((prev) =>
       prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id],
     );
-  };
-
-  // Helper to identify if an occasion is highly relevant but unsubscribed for a business/onboarding country list
-  const isOccasionHighlyRelevant = (
-    occ: Occasion,
-    selectedCountries: string[],
-  ): boolean => {
-    if (!occ.countries || occ.countries.length === 0) return false;
-    return occ.countries.some(
-      (c) =>
-        selectedCountries.includes(c) &&
-        c !== "International" &&
-        c !== "Custom",
-    );
-  };
-
-  const getOccasionDescription = (occ: Occasion) => {
-    const name = occ.name;
-    const countriesStr = occ.countries?.join(", ") || "Global";
-    const keywordStr =
-      occ.imageKeywords?.slice(0, 3).join(", ") || "festive visuals";
-    const elemStr =
-      occ.designElements?.slice(0, 2).join(" and ") || "elegant boundaries";
-
-    let extraRelevance = "";
-    if (occ.countries?.includes("India")) {
-      extraRelevance =
-        " Subscribe to this if you have clients, employees, or partners in India or of Indian heritage.";
-    } else if (occ.countries?.includes("Nigeria")) {
-      extraRelevance =
-        " Essential for businesses operating in Nigeria or engaging with the West African diaspora.";
-    } else if (occ.countries?.includes("United States")) {
-      extraRelevance =
-        " highly recommended for US-focused operations, regional campaigns, and local community outreach.";
-    } else if (occ.countries?.includes("United Kingdom")) {
-      extraRelevance =
-        " Recommended if you coordinate with British audiences or partners based in the UK.";
-    } else if (occ.category === "international") {
-      extraRelevance =
-        " A versatile occasion to foster global team unity and brand awareness across international partners.";
-    } else {
-      extraRelevance = ` Strong choice for targeting relationships in ${countriesStr}.`;
-    }
-
-    return `This seasonal event centers on ${name}, bringing people together with visual themes of ${keywordStr} set against ${elemStr}.${extraRelevance}`;
-  };
-
-  interface DisplayEvent {
-    id: string;
-    name: string;
-    type: string; // 'holiday' | 'birthday' | 'anniversary' | 'other'
-    dateLabel: string;
-    unixTime?: number;
-    isHighlyRelevant?: boolean;
-  }
-
-  const getUpcomingEventsList = (biz: Business): DisplayEvent[] => {
-    const list: DisplayEvent[] = [];
-    const today = new Date();
-    const twoWeeksLater = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
-    const currentYear = today.getFullYear();
-
-    // 1. Process custom profile events (Birthdays, Anniversaries, etc.)
-    if (biz.customEvents && biz.customEvents.length > 0) {
-      biz.customEvents.forEach((evt) => {
-        const parts = evt.date.split("-");
-        let m = 0,
-          d = 0;
-        if (parts.length === 3) {
-          m = parseInt(parts[1], 10);
-          d = parseInt(parts[2], 10);
-        } else if (parts.length === 2) {
-          m = parseInt(parts[0], 10);
-          d = parseInt(parts[1], 10);
-        }
-        if (m > 0 && d > 0) {
-          let evtDate = new Date(currentYear, m - 1, d);
-          // If already past in the current year, check if next year fits
-          if (
-            evtDate < today &&
-            (today.getMonth() !== m - 1 || today.getDate() !== d)
-          ) {
-            evtDate = new Date(currentYear + 1, m - 1, d);
-          }
-          if (evtDate >= today && evtDate <= twoWeeksLater) {
-            list.push({
-              id: evt.id,
-              name: evt.name,
-              type: evt.type,
-              dateLabel: `${m.toString().padStart(2, "0")}-${d.toString().padStart(2, "0")}`,
-              unixTime: evtDate.getTime(),
-            });
-          }
-        }
-      });
-    }
-
-    // 2. Process subscribed official occasions
-    if (biz.subscribedOccasions && biz.subscribedOccasions.length > 0) {
-      occasions
-        .filter((occ) => biz.subscribedOccasions.includes(occ.id))
-        .forEach((occ) => {
-          let mStr = resolveDynamicDateStr(occ.id, occ.date) || "";
-          let evtDate: Date | null = null;
-          if (mStr) {
-            const parts = mStr.split("-");
-            if (parts.length === 2) {
-              const m = parseInt(parts[0], 10);
-              const d = parseInt(parts[1], 10);
-              evtDate = new Date(currentYear, m - 1, d);
-              if (
-                evtDate < today &&
-                (today.getMonth() !== m - 1 || today.getDate() !== d)
-              ) {
-                evtDate = new Date(currentYear + 1, m - 1, d);
-              }
-            }
-          }
-
-          const isHighlyRelevant = isOccasionHighlyRelevant(
-            occ,
-            biz.countries || [],
-          );
-
-          if (evtDate) {
-            if (evtDate >= today && evtDate <= twoWeeksLater) {
-              list.push({
-                id: occ.id,
-                name: occ.name,
-                type: "holiday",
-                dateLabel: mStr,
-                unixTime: evtDate.getTime(),
-                isHighlyRelevant,
-              });
-            }
-          } else {
-            // Seasonal / No exact date: Add to list if we are close to when dates will be announced
-            const isClose =
-              isHighlyRelevant ||
-              occ.id === "occ-fathers-day" ||
-              occ.id === "occ-democracy-day-ng" ||
-              occ.id === "occ-islamic-new-year";
-            if (isClose) {
-              list.push({
-                id: occ.id,
-                name: occ.name,
-                type: "holiday",
-                dateLabel: "Date TBD",
-                unixTime: today.getTime() + 6 * 24 * 60 * 60 * 1000,
-                isHighlyRelevant,
-              });
-            }
-          }
-        });
-    }
-
-    // Chronological order
-    list.sort((a, b) => (a.unixTime || 0) - (b.unixTime || 0));
-    return list.slice(0, 5);
-  };
-
-  // Google Accounts notification style upcoming occurrences counter
-  const getUpcomingOccasionsCount = (biz: Business): number => {
-    if (!biz) return 0;
-    const activeCountries = biz.countries || ["Nigeria"];
-    let count = 0;
-    const today = new Date();
-    const currentWindowStart = today.getTime();
-    const currentWindowEnd = today.getTime() + 45 * 24 * 60 * 60 * 1000;
-    const currentYear = today.getFullYear();
-
-    occasions.forEach((occ) => {
-      const matchCountry =
-        occ.countries?.some((c) => activeCountries.includes(c)) ||
-        occ.countries?.includes("International") ||
-        occ.countries?.includes("international");
-      if (!matchCountry) return;
-
-      let m = -1,
-        d = -1;
-      const resolvedDateStr = resolveDynamicDateStr(occ.id, occ.date);
-      if (resolvedDateStr) {
-        const [mStr, dStr] = resolvedDateStr.split("-");
-        m = parseInt(mStr);
-        d = parseInt(dStr);
-      }
-
-      if (m !== -1 && d !== -1) {
-        let evtDate = new Date(currentYear, m - 1, d);
-        if (
-          evtDate.getTime() < currentWindowStart &&
-          (today.getMonth() !== m - 1 || today.getDate() !== d)
-        ) {
-          evtDate = new Date(currentYear + 1, m - 1, d);
-        }
-        if (
-          evtDate.getTime() >= currentWindowStart &&
-          evtDate.getTime() <= currentWindowEnd
-        ) {
-          count++;
-        }
-      }
-    });
-    return count > 0 ? count : 3; // Fallback to 3 if zero, guaranteeing active engagement notifications
-  };
-
-  // List next 4 upcoming occasions starting from the real current date
-  const getUpcomingOccasionsList = (biz: Business): Occasion[] => {
-    if (!biz) return [];
-    const activeCountries = biz.countries || ["Nigeria"];
-
-    // Filter of subscribed or matched country occasions
-    const filtered = occasions.filter((occ) => {
-      if (occ.enabled === false) return false;
-      const isSubscribed = biz.subscribedOccasions?.includes(occ.id);
-      if (biz.subscribedOccasions && biz.subscribedOccasions.length > 0) {
-        return isSubscribed;
-      }
-      const matchCountry =
-        occ.countries?.some((c) => activeCountries.includes(c)) ||
-        occ.countries?.includes("International") ||
-        occ.countries?.includes("international");
-      return matchCountry;
-    });
-
-    // Also inject custom events!
-    const customOccasions: Occasion[] = (biz.customEvents || []).map((evt) => {
-      let dateStr = evt.date;
-      if (evt.date.length === 10) {
-        const parts = evt.date.split("-");
-        dateStr = `${parts[1]}-${parts[2]}`;
-      } else if (evt.date.length === 5 && evt.date.includes("-")) {
-        dateStr = evt.date;
-      }
-      return {
-        id: evt.id,
-        name: evt.name,
-        date: dateStr,
-        category: "custom",
-        is_dynamic_date: false,
-        countries: ["International"],
-        theme:
-          evt.type === "birthday"
-            ? "Family & Childcare"
-            : evt.type === "anniversary"
-              ? "Heritage & Culture"
-              : "Creative Trends",
-        enabled: true,
-        imageKeywords:
-          evt.type === "birthday"
-            ? ["birthday", "cake", "celebration"]
-            : evt.type === "anniversary"
-              ? ["anniversary", "gifts", "celebration"]
-              : ["celebration"],
-        designElements: ["Abstract shapes"],
-        suggestedColors: [
-          biz.brandColor || "#E52B50",
-          biz.accentColor || "#45B1E8",
-        ],
-      };
-    });
-
-    const merged = [...filtered, ...customOccasions];
-    const today = new Date();
-
-    const getMonthDay = (occ: Occasion) => {
-      const resolvedDateStr = resolveDynamicDateStr(occ.id, occ.date);
-      if (!resolvedDateStr) return { m: 12, d: 31 };
-      const parts = resolvedDateStr.split("-");
-      const mStr = parts[0];
-      const dStr = parts[1] || parts[0];
-      return { m: parseInt(mStr) || 12, d: parseInt(dStr) || 31 };
-    };
-
-    const sortedWithRealDays = merged.map((occ) => {
-      const dInfo = getMonthDay(occ);
-      const year = today.getFullYear();
-
-      // Let's create candidate dates: this year, and next year (in case it has already passed this year)
-      let occDate = new Date(year, dInfo.m - 1, dInfo.d);
-      // If it passed this year, the next occurrence is next year
-      if (occDate.getTime() < today.getTime() - 24 * 60 * 60 * 1000) {
-        // permit today
-        occDate = new Date(year + 1, dInfo.m - 1, dInfo.d);
-      }
-
-      const diffMs = occDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      return { occ, diffDays };
-    });
-
-    // Keep ONLY occasions that are within the next 3 weeks (between 0 and 21 days inclusive!)
-    const filteredByThreeWeeks = sortedWithRealDays.filter(
-      (item) => item.diffDays >= 0 && item.diffDays <= 21,
-    );
-
-    // Sort by diffDays ascending
-    filteredByThreeWeeks.sort((a, b) => a.diffDays - b.diffDays);
-
-    return filteredByThreeWeeks.map((item) => item.occ);
   };
 
   const toggleNewBizCountry = (countryName: string) => {
@@ -2849,7 +2935,20 @@ export default function App() {
           </div>
 
           {/* Profile & Multi-account Dropdown on the RIGHT */}
-          <div className="flex items-center gap-3 relative select-none shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 relative select-none shrink-0">
+            <button
+              onClick={() => {
+                setAdminTab('library');
+                setShowAdminPanel(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-300/80 transition-all text-slate-800 font-bold text-xs shadow-2xs hover:shadow-xs"
+              title="Open Prompt & Reference Posters Library"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#1E824C]" />
+              <span className="hidden sm:inline">Prompt & Reference Hub</span>
+              <span className="sm:hidden">Vault</span>
+            </button>
+
             {!isPaidUser && (
               <button
                 onClick={() => setShowPaywall(true)}
@@ -3447,1344 +3546,57 @@ export default function App() {
         )}
 
         {showAddBiz && (
-          /* Profile Registry Multi-Step Wizard - Full Page Experience Stretching From Top to Bottom with scrollbar at far right */
-          <section
-            id="add_business_panel"
-            className="fixed inset-0 bg-white z-[999] flex flex-col w-full h-full overflow-y-auto animate-fade-in font-sans"
-          >
-            <div className="w-full flex-1 flex flex-col p-6 sm:p-12 max-w-3xl mx-auto h-auto justify-between min-h-screen">
-              <form
-                onSubmit={handleCreateBusiness}
-                className="flex-grow flex flex-col justify-between overflow-visible"
-              >
-                {/* Header of Onboarding with beautiful clickable steps progress indicator (Slimmed) */}
-                <div className="mb-4 space-y-2 shrink-0">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-base font-extrabold text-charcoal font-display tracking-tight">
-                      {editingBusinessId
-                        ? "Edit Campaign Profile"
-                        : "Register New Campaign Profile"}
-                    </h2>
-                    <span className="text-[9px] font-mono font-bold text-gray-500 uppercase tracking-widest bg-gray-100 px-2 py-0.5 rounded-md">
-                      Step {addBizStep} of 6
-                    </span>
-                  </div>
+          <OnboardingWizardModal
+            isOpen={showAddBiz}
+            onClose={() => {
+              setShowAddBiz(false);
+              setEditingBusinessId(null);
+            }}
+            occasions={occasions}
+            editingBusiness={editingBusinessId ? businesses.find((b) => b.id === editingBusinessId) : undefined}
+            onComplete={async (bizData, generatedFlyersBatch) => {
+              const isEdit = editingBusinessId !== null;
+              const url = isEdit ? `/api/businesses/${editingBusinessId}` : "/api/signup";
+              const method = isEdit ? "PUT" : "POST";
 
-                  {/* Slimmed progress indicator bar - Clickable for fast-travel */}
-                  <div className="grid grid-cols-6 gap-1.5 pb-2 border-b border-gray-100">
-                    {[
-                      { label: "Profile Focus", color: "#1E824C" },
-                      { label: "Mission", color: "#F25C3D" },
-                      { label: "Milestones", color: "#E52B50" },
-                      { label: "Design Asset", color: "#0076A3" },
-                      { label: "Country Affiliations", color: "#45B1E8" },
-                      { label: "Identity Preview", color: "#8854D0" },
-                    ].map((st, i) => {
-                      const stepIdx = i + 1;
-                      const isPast = addBizStep > stepIdx;
-                      const isActive = addBizStep === stepIdx;
-                      return (
-                        <button
-                          key={st.label}
-                          type="button"
-                          onClick={() => {
-                            if (stepIdx > 1 && !newBizName.trim()) {
-                              setOnboardingError(
-                                "Display / Company Registered Name is required before leaving step 1.",
-                              );
-                              return;
-                            }
-                            setOnboardingError(null);
-                            setAddBizStep(stepIdx);
-                          }}
-                          className="flex flex-col gap-1 text-left focus:outline-none cursor-pointer group select-none border-none bg-transparent"
-                          title={`Go to Step ${stepIdx}: ${st.label}`}
-                        >
-                          <div
-                            className="h-1.5 w-full rounded-full transition-all duration-300 group-hover:opacity-100"
-                            style={{
-                              backgroundColor:
-                                isPast || isActive ? st.color : "#E5E7EB",
-                              opacity: isActive ? 1 : isPast ? 0.7 : 0.3,
-                            }}
-                          />
-                          <span
-                            className="text-[7.5px] font-extrabold uppercase tracking-widest hidden sm:block truncate text-center w-full group-hover:underline"
-                            style={{
-                              color: isPast || isActive ? st.color : "#9CA3AF",
-                            }}
-                          >
-                            {st.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+              const res = await fetch(url, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(bizData),
+              });
 
-                {/* Form Body - Spacious and fully visible for outer document scrolling */}
-                <div className="flex-grow py-1 pr-1 pb-28 overflow-visible">
-                  {/* Onboarding Error Notification Block */}
-                  {onboardingError && (
-                    <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-xl p-3.5 text-xs font-bold font-sans flex items-start gap-2 animate-fade-in shrink-0">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                      <div>{onboardingError}</div>
-                    </div>
-                  )}
+              if (!res.ok) {
+                const errData = await res.json().catch(() => null);
+                throw new Error(errData?.error || "Failed to save business profile");
+              }
 
-                  {/* STEP 1: Profile Type & Basic Coordinates */}
-                  {addBizStep === 1 && (
-                    <div className="space-y-4 py-2 animate-fade-in text-left">
-                      <div>
-                        <span className="block text-xs font-bold text-[#1E824C] uppercase tracking-wider mb-2">
-                          Select Campaign Profile Type
-                        </span>
-                        <div className="grid grid-cols-2 gap-4">
-                          {(() => {
-                            const bizLimitReached =
-                              !editingBusinessId &&
-                              businesses.filter(
-                                (b) =>
-                                  b.profileType === "business" ||
-                                  !b.profileType,
-                              ).length >= 2;
-                            return (
-                              <button
-                                type="button"
-                                disabled={bizLimitReached}
-                                onClick={() => {
-                                  setNewProfileType("business");
-                                  setNewBizIndustry("Logistics & Delivery");
-                                  setNewBizIndustryDropdown(
-                                    "Logistics & Delivery",
-                                  );
-                                }}
-                                className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
-                                  bizLimitReached
-                                    ? "opacity-40 cursor-not-allowed border-[#EEDFD2] bg-gray-50 text-gray-400"
-                                    : newProfileType === "business"
-                                      ? "bg-[#1E824C]/5 text-[#1E824C] border-[#1E824C] ring-2 ring-[#1E824C]/20 font-bold"
-                                      : "bg-white hover:bg-slate-50 border-border-gray text-gray-500"
-                                }`}
-                                title={
-                                  bizLimitReached
-                                    ? "Maximum of 2 business profiles reached"
-                                    : ""
-                                }
-                              >
-                                <Building2 className="w-6 h-6 animate-pulse" />
-                                <div className="text-xs font-bold font-display">
-                                  Business Profile
-                                </div>
-                                <div className="text-[10px] opacity-75 font-sans">
-                                  {bizLimitReached
-                                    ? "Limit (2/2) Reached"
-                                    : "Launch corporate campaigns & flyering"}
-                                </div>
-                              </button>
-                            );
-                          })()}
+              const savedBiz = await res.json();
+              localStorage.setItem("coloh_current_biz", savedBiz.id);
+              setShowAddBiz(false);
+              setEditingBusinessId(null);
 
-                          {(() => {
-                            const persLimitReached =
-                              !editingBusinessId &&
-                              businesses.filter(
-                                (b) => b.profileType === "individual",
-                              ).length >= 1;
-                            return (
-                              <button
-                                type="button"
-                                disabled={persLimitReached}
-                                onClick={() => {
-                                  setNewProfileType("individual");
-                                  setNewBizIndustry("Personal");
-                                  setNewBizIndustryDropdown("Personal");
-                                }}
-                                className={`p-4 rounded-2xl border flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
-                                  persLimitReached
-                                    ? "opacity-40 cursor-not-allowed border-[#EEDFD2] bg-gray-50 text-gray-400"
-                                    : newProfileType === "individual"
-                                      ? "bg-[#1E824C]/5 text-[#1E824C] border-[#1E824C] ring-2 ring-[#1E824C]/20 font-bold"
-                                      : "bg-white hover:bg-slate-50 border-border-gray text-gray-500"
-                                }`}
-                                title={
-                                  persLimitReached
-                                    ? "Maximum of 1 personal profile reached"
-                                    : ""
-                                }
-                              >
-                                <User className="w-6 h-6 animate-pulse" />
-                                <div className="text-xs font-bold font-display">
-                                  Personal Individual
-                                </div>
-                                <div className="text-[10px] opacity-75 font-sans">
-                                  {persLimitReached
-                                    ? "Limit (1/1) Reached"
-                                    : "Personal greeting cards"}
-                                </div>
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      </div>
+              setBusinesses((prev) => {
+                const index = prev.findIndex((b) => b.id === savedBiz.id);
+                if (index !== -1) {
+                  const copy = [...prev];
+                  copy[index] = savedBiz;
+                  return copy;
+                }
+                return [...prev, savedBiz];
+              });
+              setSelectedBusinessId(savedBiz.id);
+              fetchBusinesses(savedBiz.id);
 
-                      <div>
-                        <label
-                          htmlFor="form_biz_name"
-                          className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5"
-                        >
-                          {newProfileType === "business"
-                            ? "Company Registered Name"
-                            : "Display Name"}
-                        </label>
-                        <input
-                          id="form_biz_name"
-                          type="text"
-                          placeholder={
-                            newProfileType === "business"
-                              ? "e.g. Eagle Logistics Hub"
-                              : "e.g. Kolawole Davies"
-                          }
-                          value={newBizName}
-                          onChange={(e) => setNewBizName(e.target.value)}
-                          className="block w-full px-4 py-3 bg-bgsoft border border-border-gray rounded-2xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-sm text-charcoal placeholder-gray-400 font-sans"
-                        />
-                      </div>
-
-                      {newProfileType === "business" ? (
-                        <>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                              <label
-                                htmlFor="form_biz_industry"
-                                className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5"
-                              >
-                                Industry Sector
-                              </label>
-                              <select
-                                id="form_biz_industry"
-                                value={newBizIndustryDropdown}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setNewBizIndustryDropdown(val);
-                                  if (val === "Custom") {
-                                    setNewBizIndustry(
-                                      newBizIndustryCustom || "Custom",
-                                    );
-                                  } else {
-                                    setNewBizIndustry(val);
-                                  }
-                                }}
-                                className="block w-full px-4 py-3 bg-bgsoft border border-border-gray rounded-2xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-sm text-charcoal font-sans"
-                              >
-                                <option value="Logistics & Delivery">
-                                  Logistics & Delivery
-                                </option>
-                                <option value="Retail & E-commerce">
-                                  Retail & E-commerce
-                                </option>
-                                <option value="Professional Services">
-                                  Professional Services
-                                </option>
-                                <option value="Technology & Software">
-                                  Technology & Software
-                                </option>
-                                <option value="Fintech & Banking">
-                                  Fintech & Banking
-                                </option>
-                                <option value="Fashion & Aesthetics">
-                                  Fashion & Aesthetics
-                                </option>
-                                <option value="Healthcare & Wellness">
-                                  Healthcare & Wellness
-                                </option>
-                                <option value="Education & Consulting">
-                                  Education & Consulting
-                                </option>
-                                <option value="Food & Hospitality">
-                                  Food & Hospitality
-                                </option>
-                                <option value="Custom">
-                                  Other (Type Custom Category Below...)
-                                </option>
-                              </select>
-
-                              {newBizIndustryDropdown === "Custom" && (
-                                <div className="mt-2 animate-fade-in">
-                                  <label
-                                    htmlFor="form_biz_industry_custom"
-                                    className="sr-only"
-                                  >
-                                    Type custom category
-                                  </label>
-                                  <input
-                                    id="form_biz_industry_custom"
-                                    type="text"
-                                    placeholder="Type custom focus category"
-                                    value={newBizIndustryCustom}
-                                    onChange={(e) => {
-                                      setNewBizIndustryCustom(e.target.value);
-                                      setNewBizIndustry(e.target.value);
-                                    }}
-                                    className="block w-full px-3 py-2 bg-white border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 shadow-inner"
-                                  />
-                                </div>
-                              )}
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor="form_biz_loc"
-                                className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5"
-                              >
-                                HQ City / Base Location
-                              </label>
-                              <input
-                                id="form_biz_loc"
-                                type="text"
-                                placeholder="e.g. Victoria Island, Lagos"
-                                value={newBizLocation}
-                                onChange={(e) =>
-                                  setNewBizLocation(e.target.value)
-                                }
-                                className="block w-full px-4 py-3 bg-bgsoft border border-border-gray rounded-2xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-sm text-charcoal placeholder-gray-400 font-sans"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="mt-4 animate-fade-in">
-                            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
-                              Audience Focus / Business Model
-                            </label>
-                            <div className="grid grid-cols-3 gap-2">
-                              {(["B2B", "B2C", "Both"] as const).map((type) => (
-                                <button
-                                  key={type}
-                                  type="button"
-                                  onClick={() => setNewBizType(type)}
-                                  className={`px-4 py-2.5 text-xs font-bold rounded-2xl border transition-all duration-200 cursor-pointer ${
-                                    newBizType === type
-                                      ? "bg-[#1E824C] border-[#1E824C] text-white shadow-sm"
-                                      : "bg-white border-border-gray hover:bg-gray-50 text-gray-700"
-                                  }`}
-                                >
-                                  {type === "Both" ? "Both (B2B & B2C)" : type}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div>
-                          <label
-                            htmlFor="form_biz_loc_individual"
-                            className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5"
-                          >
-                            Home City / Country
-                          </label>
-                          <input
-                            id="form_biz_loc_individual"
-                            type="text"
-                            placeholder="e.g. Ikeja, Lagos"
-                            value={newBizLocation}
-                            onChange={(e) => setNewBizLocation(e.target.value)}
-                            className="block w-full px-4 py-3 bg-bgsoft border border-border-gray rounded-2xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-sm text-charcoal placeholder-gray-400 font-sans"
-                          />
-                        </div>
-                      )}
-
-                      {/* Optional Fliers Contact Information Fields - Collapsible Accordion Box */}
-                      <div className="border border-border-gray rounded-2xl bg-white overflow-hidden mt-4 shadow-sm text-left">
-                        <button
-                          type="button"
-                          onClick={() => setContactsExpanded(!contactsExpanded)}
-                          className="w-full flex justify-between items-center px-4 py-3 bg-[#FCFAF7] hover:bg-[#F3EDE0] transition-colors text-left focus:outline-none"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-700 font-sans tracking-wide">
-                              Contacts (optional)
-                            </span>
-                            <span className="text-[10px] text-gray-400 font-normal">
-                              - Tap to{" "}
-                              {contactsExpanded ? "collapse" : "expand"}
-                            </span>
-                          </div>
-                          <span
-                            className={`text-[10px] text-gray-400 font-bold transition-transform duration-200 transform ${contactsExpanded ? "rotate-180" : ""}`}
-                          >
-                            ▼
-                          </span>
-                        </button>
-
-                        {contactsExpanded && (
-                          <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-border-gray bg-white animate-fade-in">
-                            <div>
-                              <label
-                                htmlFor="form_biz_phone"
-                                className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5"
-                              >
-                                Phone
-                              </label>
-                              <input
-                                id="form_biz_phone"
-                                type="tel"
-                                placeholder="e.g. +234 80 1234 5678"
-                                value={newBizPhone}
-                                onChange={(e) => setNewBizPhone(e.target.value)}
-                                className="block w-full px-3 py-2 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-sans"
-                              />
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor="form_biz_email"
-                                className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5"
-                              >
-                                Email
-                              </label>
-                              <input
-                                id="form_biz_email"
-                                type="email"
-                                placeholder="e.g. contact@domain.com"
-                                value={newBizEmail}
-                                onChange={(e) => setNewBizEmail(e.target.value)}
-                                className="block w-full px-3 py-2 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-sans"
-                              />
-                            </div>
-
-                            <div>
-                              <label
-                                htmlFor="form_biz_instagram"
-                                className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5"
-                              >
-                                Instagram
-                              </label>
-                              <div className="relative">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
-                                  @
-                                </span>
-                                <input
-                                  id="form_biz_instagram"
-                                  type="text"
-                                  placeholder="username"
-                                  value={newBizInstagram}
-                                  onChange={(e) =>
-                                    setNewBizInstagram(
-                                      e.target.value.replace("@", ""),
-                                    )
-                                  }
-                                  className="block w-full pl-6 pr-3 py-2 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-sans"
-                                />
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <label
-                                htmlFor="form_biz_x_username"
-                                className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5"
-                              >
-                                X (Twitter)
-                              </label>
-                              <div className="relative">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-xs">
-                                  @
-                                </span>
-                                <input
-                                  id="form_biz_x_username"
-                                  type="text"
-                                  placeholder="username"
-                                  value={newBizXUsername}
-                                  onChange={(e) =>
-                                    setNewBizXUsername(
-                                      e.target.value.replace("@", ""),
-                                    )
-                                  }
-                                  className="block w-full pl-6 pr-3 py-2 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-sans"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 2: Standalone Brand Tagline, Beliefs & Mission (Separate Setup Screen) */}
-                  {addBizStep === 2 && (
-                    <div className="space-y-4 py-2 animate-fade-in text-left">
-                      <div className="space-y-1">
-                        <span className="block text-[10px] font-black text-[#F25C3D] uppercase tracking-widest bg-orange-50 inline-block px-2.5 py-1 rounded-md mb-1">
-                          Step 2: Brand Tagline & Values Profile
-                        </span>
-                        <h3 className="text-sm font-extrabold text-slate-800 tracking-tight font-display">
-                          Identify Brand Values & Mission
-                        </h3>
-                        <p className="text-xs text-gray-500 leading-relaxed font-sans">
-                          These core values feed our dynamic recommendation
-                          engine to highlight the most relevant seasonal
-                          engagements for your audience.
-                        </p>
-                      </div>
-
-                      <div className="space-y-3.5">
-                        {/* Values templates quick select */}
-                        <div className="space-y-3.5 mt-4">
-                          <div className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-xl px-3 py-1.5 shrink-0 select-none">
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                              Quick-Add Brand Focus Categories
-                            </span>
-                            <span className="text-[9px] font-black text-[#F25C3D] bg-orange-100/80 px-2 rounded font-mono">
-                              {selectedTemplates.length}/4 Selected
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[190px] overflow-y-auto pr-1">
-                            {BUSINESS_TAGLINE_TEMPLATES.map((tpl) => {
-                              const isActive = selectedTemplates.includes(
-                                tpl.label,
-                              );
-                              return (
-                                <button
-                                  key={tpl.label}
-                                  type="button"
-                                  onClick={() => handleTemplateToggle(tpl)}
-                                  className={`p-2.5 rounded-xl border transition-all text-left flex items-start gap-2.5 select-none cursor-pointer group ${
-                                    isActive
-                                      ? "bg-[#F25C3D] border-[#F25C3D] text-white shadow-xs"
-                                      : "bg-white hover:bg-slate-50 border-gray-200/80 text-slate-700"
-                                  }`}
-                                >
-                                  <div
-                                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
-                                      isActive
-                                        ? "bg-white/20 text-white"
-                                        : "bg-[#F25C3D]/5 text-[#F25C3D]"
-                                    }`}
-                                  >
-                                    {getTemplateIcon(tpl.label)}
-                                  </div>
-                                  <div className="min-w-0 flex-1 leading-tight">
-                                    <h4
-                                      className={`font-bold text-[10.5px] truncate ${isActive ? "text-white" : "text-slate-800"}`}
-                                    >
-                                      {tpl.label}
-                                    </h4>
-                                    <p
-                                      className={`text-[9px] line-clamp-1 mt-0.5 ${isActive ? "text-orange-100/90" : "text-gray-400"}`}
-                                    >
-                                      {tpl.text}
-                                    </p>
-                                  </div>
-                                  <div className="shrink-0 pt-0.5">
-                                    {isActive ? (
-                                      <div className="w-4 h-4 rounded-full bg-white text-[#F25C3D] flex items-center justify-center">
-                                        <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 text-transparent group-hover:text-slate-400 transition-all flex items-center justify-center">
-                                        <Plus className="w-2.5 h-2.5 stroke-[2.5]" />
-                                      </div>
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 mt-4">
-                          <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
-                            Brand Tone & Voice
-                          </label>
-                          <div className="grid grid-cols-2 gap-2">
-                            {(
-                              [
-                                "corporate",
-                                "friendly",
-                                "playful",
-                                "premium",
-                              ] as BrandTone[]
-                            ).map((tone) => (
-                              <button
-                                key={tone}
-                                type="button"
-                                onClick={() => setNewBizTone(tone)}
-                                className={`px-4 py-3 text-xs font-bold rounded-2xl border transition-all duration-200 cursor-pointer capitalize ${
-                                  newBizTone === tone
-                                    ? "bg-[#F25C3D] border-[#F25C3D] text-white shadow-sm"
-                                    : "bg-white border-border-gray hover:bg-gray-50 text-gray-700"
-                                }`}
-                              >
-                                {tone}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Sign-Off Settings */}
-                        <div className="space-y-3 mt-6 pt-4 border-t border-gray-100">
-                          <div className="flex items-center justify-between">
-                            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
-                              Use Personalized Sign-off?
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setNewBizUseSignOff(!newBizUseSignOff)}
-                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${newBizUseSignOff ? "bg-[#1E824C]" : "bg-gray-300"}`}
-                            >
-                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${newBizUseSignOff ? "translate-x-4.5" : "translate-x-1"}`} />
-                            </button>
-                          </div>
-                          {newBizUseSignOff && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fade-in mt-3">
-                              <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                  Sign-off Name
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. John Doe"
-                                  value={newBizSignOffName}
-                                  onChange={(e) => setNewBizSignOffName(e.target.value)}
-                                  className="block w-full px-3 py-2 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-sans"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">
-                                  Position/Role (Optional)
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. Managing Director"
-                                  value={newBizSignOffRole}
-                                  onChange={(e) => setNewBizSignOffRole(e.target.value)}
-                                  className="block w-full px-3 py-2 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#1E824C] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-sans"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 3: Custom Milestone Celebrations (Birthdays, Anniversaries) */}
-                  {addBizStep === 3 && (
-                    <div className="space-y-4 py-2 animate-fade-in text-left flex flex-col justify-start overflow-y-auto flex-1 min-h-0">
-                      <div>
-                        <span className="block text-xs font-bold text-[#E52B50] uppercase tracking-wider mb-1">
-                          Custom Non-Occasions
-                        </span>
-                        <p className="text-xs text-gray-400 mb-3 font-sans leading-relaxed">
-                          Capture custom dates such as customer/employee
-                          anniversaries, family birthdays, or brand specific
-                          milestones to celebrate them.
-                        </p>
-                      </div>
-
-                      {/* Milestone details entering - Flat Row */}
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 py-2.5 bg-transparent shrink-0">
-                        <div className="sm:col-span-4">
-                          <label
-                            htmlFor="milestone_name"
-                            className="block text-[10px] font-bold text-gray-500 uppercase mb-1"
-                          >
-                            Event Name
-                          </label>
-                          <input
-                            id="milestone_name"
-                            type="text"
-                            placeholder="e.g. John's Birthday, Anniversary"
-                            value={tempEventName}
-                            onChange={(e) => setTempEventName(e.target.value)}
-                            className="block w-full px-3 py-2 bg-white border border-border-gray rounded-xl text-xs font-sans text-charcoal focus:outline-none focus:ring-1 focus:ring-[#E52B50]"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <label
-                            htmlFor="milestone_date"
-                            className="block text-[10px] font-bold text-gray-500 uppercase mb-1"
-                          >
-                            Date
-                          </label>
-                          <input
-                            id="milestone_date"
-                            type="date"
-                            value={tempEventDate}
-                            onChange={(e) => setTempEventDate(e.target.value)}
-                            className="block w-full px-2 py-2 bg-white border border-border-gray rounded-xl text-xs font-sans text-[#444] focus:outline-none focus:ring-1 focus:ring-[#E52B50]"
-                          />
-                        </div>
-
-                        <div className="sm:col-span-3">
-                          <label
-                            htmlFor="milestone_type"
-                            className="block text-[10px] font-bold text-gray-500 uppercase mb-1"
-                          >
-                            Type
-                          </label>
-                          <select
-                            id="milestone_type"
-                            value={tempEventType}
-                            onChange={(e) =>
-                              setTempEventType(
-                                e.target.value as
-                                  | "birthday"
-                                  | "anniversary"
-                                  | "other",
-                              )
-                            }
-                            className="block w-full px-2 py-2 bg-white border border-border-gray rounded-xl text-xs font-sans text-[#444] focus:outline-none focus:ring-1 focus:ring-[#E52B50]"
-                          >
-                            <option value="birthday">Birthday</option>
-                            <option value="anniversary">Anniversary</option>
-                            <option value="other">
-                              Other (Other events with notes)
-                            </option>
-                          </select>
-                        </div>
-
-                        <div className="sm:col-span-2 flex items-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!tempEventName.trim()) {
-                                showToast(
-                                  "Please enter custom celebration name first!",
-                                  "info",
-                                );
-                                return;
-                              }
-                              if (!tempEventDate) {
-                                showToast(
-                                  "Please specify the milestone date first!",
-                                  "info",
-                                );
-                                return;
-                              }
-                              // Parse into suitable representation (MM-DD)
-                              const parts = tempEventDate.split("-");
-                              let formattedDate = tempEventDate;
-                              if (parts.length === 3) {
-                                // YYYY-MM-DD
-                                formattedDate = `${parts[1]}-${parts[2]}`;
-                              }
-
-                              if (editingEventId) {
-                                // Save edit
-                                setNewCustomEvents((prev) =>
-                                  prev.map((evt) => {
-                                    if (evt.id === editingEventId) {
-                                      return {
-                                        ...evt,
-                                        name: tempEventName,
-                                        date: formattedDate,
-                                        type: tempEventType,
-                                        notes: tempEventNotes,
-                                        isAnnual: tempEventIsAnnual,
-                                      };
-                                    }
-                                    return evt;
-                                  }),
-                                );
-                                showToast("Event updated successfully!");
-                                setEditingEventId(null);
-                              } else {
-                                // Add new event
-                                const newEvent = {
-                                  id: "custom_" + Date.now(),
-                                  name: tempEventName,
-                                  date: formattedDate,
-                                  type: tempEventType,
-                                  notes: tempEventNotes,
-                                  isAnnual: tempEventIsAnnual,
-                                };
-                                setNewCustomEvents((prev) => [
-                                  ...prev,
-                                  newEvent,
-                                ]);
-                                showToast("Event added successfully!");
-                              }
-
-                              setTempEventName("");
-                              setTempEventDate("");
-                              setTempEventNotes("");
-                              setTempEventIsAnnual(true);
-                            }}
-                            className="w-full bg-[#E52B50] hover:bg-[#B81E3D] inline-flex items-center justify-center p-2.5 text-white font-bold rounded-xl text-xs transition-colors shadow-sm cursor-pointer border-none animate-scale-in"
-                          >
-                            {editingEventId ? "Save" : "Add"}
-                          </button>
-                        </div>
-
-                        {/* Repeat annually check box */}
-                        <div className="sm:col-span-12 flex items-center gap-2 mt-1 select-none">
-                          <input
-                            id="milestone_is_annual"
-                            type="checkbox"
-                            checked={tempEventIsAnnual}
-                            onChange={(e) =>
-                              setTempEventIsAnnual(e.target.checked)
-                            }
-                            className="w-4 h-4 text-[#E52B50] border-border-gray rounded focus:ring-[#E52B50] cursor-pointer"
-                          />
-                          <label
-                            htmlFor="milestone_is_annual"
-                            className="text-xs text-gray-500 font-bold cursor-pointer font-sans"
-                          >
-                            annual event
-                          </label>
-                          {editingEventId && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingEventId(null);
-                                setTempEventName("");
-                                setTempEventDate("");
-                                setTempEventNotes("");
-                                setTempEventIsAnnual(true);
-                              }}
-                              className="ml-auto text-[#E52B50] hover:underline text-xs bg-transparent border-none cursor-pointer"
-                            >
-                              Cancel Edit
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Always show Notes / Details field for custom events */}
-                        <div className="sm:col-span-12 mt-1">
-                          <label
-                            htmlFor="milestone_notes"
-                            className="block text-[10px] font-bold text-gray-500 uppercase mb-1"
-                          >
-                            Notes / What is this about?{" "}
-                            <span className="text-[9px] text-gray-400 font-normal lowercase">
-                              (Optional)
-                            </span>
-                          </label>
-                          <textarea
-                            id="milestone_notes"
-                            rows={1}
-                            placeholder={
-                              tempEventType === "other"
-                                ? "Describe and add explanatory notes context about this custom milestone..."
-                                : "Add details or personal campaign notes about this celebration..."
-                            }
-                            value={tempEventNotes}
-                            onChange={(e) => setTempEventNotes(e.target.value)}
-                            className="block w-full px-3 py-1.5 bg-white border border-border-gray rounded-xl text-xs font-sans text-charcoal focus:ring-1 focus:ring-[#E52B50] focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Displaying added custom milestones */}
-                      <div className="flex-1 overflow-y-auto flex flex-col min-h-0">
-                        <span className="block text-[10px] font-bold text-[#E52B50] uppercase mb-1.5 shrink-0">
-                          Captured Milestones ({newCustomEvents.length})
-                        </span>
-                        {newCustomEvents.length > 0 ? (
-                          <div className="overflow-y-auto max-h-[160px] border border-border-gray bg-white rounded-xl p-2.5 space-y-1 font-sans">
-                            {newCustomEvents.map((evt) => (
-                              <div
-                                key={evt.id}
-                                className="flex justify-between items-center bg-white hover:bg-[#45B1E8]/5 border border-slate-100 p-1.5 px-3 rounded-xl text-xs transition-colors shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                              >
-                                <div className="flex flex-col min-w-0 flex-1 text-left">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="font-bold text-neutral-800 text-[11px] truncate max-w-[120px]">
-                                      {evt.name}
-                                    </span>
-                                    <span className="text-[8px] bg-slate-100 text-slate-800 border border-slate-200/50 px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider shrink-0">
-                                      {evt.type}
-                                    </span>
-                                    {evt.isAnnual !== false && (
-                                      <span className="text-[8px] bg-emerald-50 text-emerald-800 border border-emerald-150 px-1.5 py-0.2 rounded font-semibold uppercase tracking-wider shrink-0">
-                                        Annual
-                                      </span>
-                                    )}
-                                  </div>
-                                  {evt.notes && (
-                                    <span className="text-[9.5px] text-gray-400 font-sans truncate max-w-[150px] sm:max-w-[220px]">
-                                      {evt.notes}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0 ml-2">
-                                  <span className="text-[9px] text-[#45B1E8] bg-[#45B1E8]/10 border border-[#45B1E8]/20 px-2 py-0.5 rounded-md font-mono font-bold shrink-0">
-                                    {evt.date}
-                                  </span>
-
-                                  <div className="flex items-center gap-1 border-l border-gray-100 pl-1.5">
-                                    {/* Edit Button */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingEventId(evt.id);
-                                        setTempEventName(evt.name);
-                                        setTempEventDate(
-                                          evt.date.length === 5
-                                            ? `2026-${evt.date}`
-                                            : evt.date,
-                                        );
-                                        setTempEventType(evt.type);
-                                        setTempEventNotes(evt.notes || "");
-                                        setTempEventIsAnnual(
-                                          evt.isAnnual !== false,
-                                        );
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-[#45B1E8] hover:bg-[#45B1E8]/10 rounded-lg transition-colors"
-                                      title="Edit event details"
-                                    >
-                                      <Edit className="w-3.5 h-3.5" />
-                                    </button>
-
-                                    {/* Delete Button */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (editingEventId === evt.id) {
-                                          setEditingEventId(null);
-                                          setTempEventName("");
-                                          setTempEventDate("");
-                                          setTempEventNotes("");
-                                          setTempEventIsAnnual(true);
-                                        }
-                                        setNewCustomEvents((prev) =>
-                                          prev.filter((e) => e.id !== evt.id),
-                                        );
-                                      }}
-                                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-rose-50 rounded-lg transition-colors"
-                                      title="Delete custom celebration"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="border-2 border-dashed border-border-gray bg-[#FCFDFE] rounded-xl p-4.5 text-center text-xs text-gray-400 font-sans">
-                            No custom celebrations captured yet. Use the inputs
-                            above to add one.
-                          </div>
-                        )}
-
-                        {/* Step remains fully navigable using Next or the progress stepper above */}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 4: Brand Identity - No Scroll */}
-                  {addBizStep === 4 && (
-                    <div className="space-y-6 py-4 animate-fade-in text-left">
-                      <div className="space-y-3">
-                        <span className="block text-xs font-bold text-[#0076A3] uppercase tracking-wider">
-                          Company Logo & Brand Expression
-                        </span>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {/* Direct Upload Box with success thumbnail preview */}
-                          <div className="border-2 border-dashed border-border-gray hover:border-[#0076A3]/50 bg-[#FCFDFE] rounded-2xl p-5 text-center cursor-pointer transition-all relative flex flex-col justify-center items-center group min-h-[140px]">
-                            <input
-                              id="form_biz_logo_upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoFilesSelect}
-                              className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                            />
-                            {newBizLogoUrl ? (
-                              <div className="flex flex-col items-center gap-2 z-20">
-                                <img
-                                  src={newBizLogoUrl}
-                                  alt="Uploaded business logo preview"
-                                  referrerPolicy="no-referrer"
-                                  className="w-16 h-16 rounded-none object-contain border border-border-gray bg-white p-1 shadow-md animate-scale-in"
-                                />
-                                <span className="text-[10px] text-[#0076A3] font-bold flex items-center gap-1 bg-[#0076A3]/15 px-2 py-0.5 rounded-full">
-                                  <Check className="w-3 h-3 text-[#0076A3]" />{" "}
-                                  {newBizLogoUrl.startsWith("data:") ? "Upload Success" : "Logo Active"}
-                                </span>
-                                <span className="text-[9px] text-gray-400 font-sans">
-                                  Click/Drag to replace
-                                </span>
-                              </div>
-                            ) : (
-                              <>
-                                <Upload className="w-8 h-8 text-[#0076A3] mb-2 group-hover:scale-105 transition-transform" />
-                                <span className="text-xs font-bold text-[#6B7280]">
-                                  Direct Logo Upload
-                                </span>
-                                <span className="text-[10px] text-gray-400 mt-0.5 font-sans">
-                                  Drag/Drop or Tap to select image
-                                </span>
-                              </>
-                            )}
-                          </div>
-
-                          {/* URL Fallback Box */}
-                          <div className="border border-border-gray rounded-2xl p-5 bg-white flex flex-col justify-center gap-2">
-                            <label
-                              htmlFor="form_biz_logo"
-                              className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider font-sans mt-0.5"
-                            >
-                              Or Paste Logo Image URL
-                            </label>
-                            <input
-                              id="form_biz_logo"
-                              type="text"
-                              placeholder="e.g. https://domain.local/logo.png"
-                              value={
-                                newBizLogoUrl.startsWith("data:")
-                                  ? ""
-                                  : newBizLogoUrl
-                              }
-                              onChange={(e) => setNewBizLogoUrl(e.target.value)}
-                              className="block w-full px-3.5 py-2.5 bg-bgsoft border border-border-gray rounded-xl focus:ring-1 focus:ring-[#0076A3] focus:border-transparent text-xs text-charcoal placeholder-gray-400 font-mono"
-                            />
-                            {newBizLogoUrl &&
-                              newBizLogoUrl.startsWith("data:") && (
-                                <span className="text-[9px] bg-[#0076A3]/15 text-[#0076A3] px-2.5 py-1 rounded inline-flex items-center gap-1 font-bold animate-pulse">
-                                  <Check className="w-3 h-3 shrink-0 text-[#0076A3]" />{" "}
-                                  Direct Memory Upload Active
-                                </span>
-                              )}
-                            {newBizLogoUrl &&
-                              !newBizLogoUrl.startsWith("data:") && (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <img
-                                    src={newBizLogoUrl}
-                                    alt="Logo URL preview"
-                                    referrerPolicy="no-referrer"
-                                    className="w-8 h-8 rounded border object-contain bg-slate-50"
-                                    onError={(e) => {
-                                      (e.target as HTMLElement).style.display =
-                                        "none";
-                                    }}
-                                  />
-                                  <span className="text-[9px] text-gray-400 font-sans">
-                                    URL synced
-                                  </span>
-                                </div>
-                              )}
-                          </div>
-                        </div>
-
-                        {extractedBrand && extractedBrand.colors && extractedBrand.colors.length > 0 && newBizLogoUrl && (
-                          <div className="mt-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col gap-2 animate-fade-in text-left">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                                  Color Palette Extracted
-                                </span>
-                            </div>
-                            <p className="text-xs text-indigo-900/80 font-sans">
-                              We successfully extracted your brand colors. Carditaur will use these to automatically style and brand all generated flyers (backgrounds, text, and assets).
-                            </p>
-                            <div className="flex items-center gap-3 mt-2">
-                              {extractedBrand.colors.map((color: string, i: number) => (
-                                <div key={i} className="flex flex-col items-center gap-1">
-                                  <div 
-                                    className="w-8 h-8 rounded-full border border-gray-200 shadow-sm"
-                                    style={{ backgroundColor: color }}
-                                  />
-                                  <span className="text-[9px] text-gray-500 font-mono uppercase">{color}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 5: Dedicated Country selection page - active regions we are affiliated with */}
-                  {addBizStep === 5 && (
-                    <div className="space-y-4 py-4 animate-fade-in text-left">
-                      <div>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
-                          <span className="block text-xs font-bold text-[#45B1E8] uppercase tracking-wider">
-                            Active Countries & Affiliations
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full select-none ${
-                              newBizCountries.length === 5
-                                ? "bg-amber-100 text-amber-800"
-                                : newBizCountries.length > 0
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-gray-100 text-gray-500"
-                            }`}
-                          >
-                            {newBizCountries.length}/5 Countries Selected
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 mb-4 font-sans leading-relaxed">
-                          Select the countries where your campaign profile is
-                          active or regions you are affiliated with. This will
-                          customize your Seasonal Timeline and automatically
-                          suggest and score relevant local celebrations.
-                        </p>
-
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-2 bg-transparent">
-                          {AVAILABLE_COUNTRIES.map((country) => {
-                            const isChecked = newBizCountries.includes(country);
-                            return (
-                              <button
-                                key={country}
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  toggleNewBizCountry(country);
-                                }}
-                                className={`px-3 py-2.5 rounded-xl border text-xs font-bold text-center transition-all select-none cursor-pointer flex items-center justify-center gap-1.5 ${
-                                  isChecked
-                                    ? "bg-[#45B1E8] text-white border-[#45B1E8] shadow-sm font-sans"
-                                    : "bg-white text-gray-600 border-border-gray hover:bg-gray-50 hover:border-gray-300 font-sans"
-                                }`}
-                              >
-                                {isChecked && (
-                                  <Check className="w-3.5 h-3.5 text-white shrink-0" />
-                                )}
-                                <span>{country}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* STEP 6: Brand Campaign Identity Preview & Matching Calibration */}
-                  {addBizStep === 6 && (
-                    <div className="space-y-4 py-4 animate-fade-in text-left">
-                      <div className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                          <span className="block text-xs font-bold text-[#8854D0] uppercase tracking-wider font-display">
-                            Brand Campaign Profile Calibration Preview
-                          </span>
-                        </div>
-
-                        {/* Summary panel of entered metadata */}
-                        <div className="bg-white border border-border-gray rounded-2xl p-4 space-y-3 shadow-xs">
-                          <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-extrabold text-charcoal truncate">
-                                {newBizName || "Unnamed Campaign"}
-                              </h4>
-                              <p className="text-[10px] text-gray-400 font-medium truncate mt-0.5">
-                                {newBizIndustry} •{" "}
-                                {newBizLocation || "No region specified"}
-                              </p>
-                            </div>
-                            <span
-                              className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded-md shrink-0 block ${
-                                newProfileType === "individual"
-                                  ? "bg-[#E52B50]/10 text-[#E52B50]"
-                                  : "bg-[#1E824C]/10 text-[#1E824C]"
-                              }`}
-                            >
-                              {newProfileType === "individual"
-                                ? "Personal"
-                                : "Business"}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3 text-[10.5px]">
-                            <div>
-                              <span className="text-gray-400 block font-medium">
-                                Contact Details
-                              </span>
-                              <span className="text-gray-600 truncate block mt-0.5 max-w-xs">
-                                {newBizPhone || newBizEmail || newBizInstagram || newBizXUsername
-                                  ? `${newBizPhone || "-"} | ${newBizEmail || "-"} | ${newBizInstagram || "-"} | ${newBizXUsername || "-"}`
-                                  : "No contacts provided"}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-gray-400 block font-medium">
-                                Target Affiliations
-                              </span>
-                              <span className="text-gray-600 truncate block mt-0.5 max-w-xs">
-                                {newBizCountries.join(", ") ||
-                                  "No countries selected"}
-                              </span>
-                            </div>
-                          </div>
-
-                          {newBizDescription && (
-                            <div className="text-[10.5px] border-t border-gray-50 pt-2">
-                              <span className="text-gray-400 block font-medium">
-                                Campaign Description / Mission Tagline
-                              </span>
-                              <p className="text-gray-600 mt-0.5 max-w-lg leading-relaxed italic truncate">
-                                “{newBizDescription}”
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Brand Asset Colors Preview */}
-                          <div className="flex items-center gap-2 text-[10.5px] pt-1">
-                            <span className="text-gray-400 font-medium font-sans">
-                              Brand Palette Preview:
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <div
-                                className="w-4 h-4 rounded-full border border-gray-100 shadow-xs"
-                                style={{ backgroundColor: newBizBrandColor }}
-                                title={`Primary Color: ${newBizBrandColor}`}
-                              />
-                              <div
-                                className="w-4 h-4 rounded-full border border-gray-100 shadow-xs"
-                                style={{ backgroundColor: newBizAccentColor }}
-                                title={`Accent Color: ${newBizAccentColor}`}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Real-time Dynamic Event Suggestion Section */}
-                        <div className="border-t border-dashed border-gray-150 pt-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-700 tracking-tight uppercase flex items-center gap-1.5 font-sans">
-                              <Sparkles className="w-3.5 h-3.5 text-[#E52B50] animate-pulse" />
-                              Algorithm Recommendations Based on Affiliations
-                            </span>
-                            <span className="text-[9.5px] font-semibold text-gray-400 font-mono">
-                              Matched Live
-                            </span>
-                          </div>
-
-                          {suggestedEventsForStep5.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1">
-                              {suggestedEventsForStep5.map((occ) => {
-                                // Find matching country name or use list
-                                const matches =
-                                  occ.countries?.filter((c) =>
-                                    newBizCountries.includes(c),
-                                  ) || [];
-                                return (
-                                  <div
-                                    key={occ.id}
-                                    className="p-2.5 rounded-xl border border-dashed border-gray-200 bg-gray-50 hover:bg-white hover:shadow-sm transition-all flex flex-col justify-between items-start gap-1"
-                                  >
-                                    <div className="flex items-center justify-between w-full gap-2">
-                                      <span className="text-xs font-extrabold text-gray-800 line-clamp-1">
-                                        {occ.name}
-                                      </span>
-                                      <span className="text-[10px] text-gray-500 font-bold bg-white border border-gray-100 px-1.5 py-0.5 rounded shrink-0">
-                                        {occ.date
-                                          ? formatDateStr(occ.date, occ.id)
-                                          : "Moveable"}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 flex-wrap mt-1 w-full">
-                                      <span className="text-[8px] font-bold text-[#E52B50] bg-rose-50 px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">
-                                        {occ.category}
-                                      </span>
-                                      {matches.slice(0, 2).map((m) => (
-                                        <span
-                                          key={m}
-                                          className="text-[8.5px] font-semibold text-[#45B1E8] bg-sky-50 px-1.5 py-0.5 rounded"
-                                        >
-                                          Affiliated: {m}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="text-center py-6 border border-dashed border-gray-100 bg-slate-50/50 rounded-xl">
-                              <Globe className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
-                              <p className="text-[10.5px] font-bold text-gray-450 leading-normal">
-                                Please select at least one country in Step 5 to
-                                preview instant algorithm recommendations
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Floating Overlaid Navigation Controls */}
-                <div className="select-none">
-                  {/* Floating Left Button (Back / Cancel) */}
-                  <div className="fixed bottom-6 left-6 md:left-12 z-[1000]">
-                    {addBizStep > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOnboardingError(null);
-                          setAddBizStep(addBizStep - 1);
-                        }}
-                        className="px-5 py-2.5 bg-white border border-[#E2D1BD] hover:bg-[#FAF6ED] text-[#080808] font-bold text-xs rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer font-sans"
-                      >
-                        ← Back
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAddBiz(false);
-                          setEditingBusinessId(null);
-                          setAddBizStep(1);
-                        }}
-                        className="px-5 py-2.5 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 font-bold text-xs rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer font-sans"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Floating Action Right Button (Next / Register) */}
-                  <div className="fixed bottom-6 right-6 md:right-12 z-[1000]">
-                    {addBizStep < 6 ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOnboardingError(null);
-                          if (addBizStep === 1) {
-                            if (!newBizName.trim()) {
-                              setOnboardingError(
-                                newProfileType === "business"
-                                  ? "Company Registered Name is required."
-                                  : "Display Name is required.",
-                              );
-                              return;
-                            }
-                            if (!newBizLocation.trim()) {
-                              setOnboardingError(
-                                "Location / City is required.",
-                              );
-                              return;
-                            }
-                          }
-                          setAddBizStep(addBizStep + 1);
-                        }}
-                        className="px-6 py-2.5 bg-[#E52B50] hover:bg-[#C81C3D] text-white font-bold text-xs rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer font-sans"
-                      >
-                        Next →
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        className="px-6 py-2.5 bg-[#1E824C] hover:bg-[#155C34] text-white font-bold text-xs rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer font-sans"
-                      >
-                        {editingBusinessId
-                          ? "Save Profile"
-                          : "Register Profile"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </form>
-            </div>
-          </section>
+              if (generatedFlyersBatch && generatedFlyersBatch.length > 0) {
+                setGeneratedFlyers(generatedFlyersBatch);
+                setCurrentFlyerIndex(0);
+                setFlyerOverlay("studio");
+                showToast("Flyer generated and profile saved!");
+              } else {
+                showToast(isEdit ? "Profile updated successfully!" : "Profile registered successfully!");
+              }
+            }}
+          />
         )}
 
         {/* Unified, Premium & Minimalist Campaign Workspace */}
@@ -4793,6 +3605,7 @@ export default function App() {
             {/* Feature 1: HOME (Dashboard Bento Roster) */}
             {activeFeature === "home" && (
               <div className="space-y-6 animate-fade-in flex flex-col w-full text-left">
+                
                 {/* Single line showing closest upcoming event, rotating top 2 events every 5 seconds with slide-right animation */}
                 {(() => {
                   const activeBiz =
@@ -5622,12 +4435,16 @@ export default function App() {
                                             if (e.target.value === "1080x1080") { setSelectedWidth(1080); setSelectedHeight(1080); }
                                             if (e.target.value === "1080x1350") { setSelectedWidth(1080); setSelectedHeight(1350); }
                                             if (e.target.value === "1080x1920") { setSelectedWidth(1080); setSelectedHeight(1920); }
+                                            if (e.target.value === "1080x1440") { setSelectedWidth(1080); setSelectedHeight(1440); }
+                                            if (e.target.value === "1920x1080") { setSelectedWidth(1920); setSelectedHeight(1080); }
                                         }}
                                      >
-                                        <option value="auto-diverse">Auto (Diverse Sizes)</option>
-                                        <option value="1080x1080">1080 x 1080 (Square)</option>
-                                        <option value="1080x1350">1080 x 1350 (Portrait)</option>
-                                        <option value="1080x1920">1080 x 1920 (Story)</option>
+                                        <option value="auto-diverse">Auto (3 Sizes: 1:1, 4:5, 9:16)</option>
+                                        <option value="1080x1080">1080 × 1080 (Square 1:1)</option>
+                                        <option value="1080x1350">1080 × 1350 (Portrait Feed 4:5)</option>
+                                        <option value="1080x1920">1080 × 1920 (Story / Status 9:16)</option>
+                                        <option value="1080x1440">1080 × 1440 (Poster 3:4)</option>
+                                        <option value="1920x1080">1920 × 1080 (Landscape 16:9)</option>
                                      </select>
                                   </div>
                                 </div>
@@ -5642,7 +4459,7 @@ export default function App() {
                                           <span className="text-charcoal text-xs font-mono font-black">{flyerProgressPercent}%</span>
                                         </div>
                                         <div className="space-y-1.5 text-center">
-                                          <h4 className="font-bold text-sm text-charcoal">Synthesizing Diverse Flyers</h4>
+                                          <h4 className="font-bold text-sm text-charcoal">Synthesizing Diverse Multi-Size Flyers</h4>
                                           <p className="text-xs text-gray-500">{loadingPhase}</p>
                                         </div>
                                       </div>
@@ -5650,13 +4467,23 @@ export default function App() {
                                       <div className={`w-full h-full max-w-7xl flex ${showDebugOverlay ? "flex-col lg:flex-row" : "flex-col"} items-center lg:items-stretch justify-center gap-6 pt-2 relative`}><div className="flex-1 flex flex-col items-center w-full max-w-4xl h-full min-h-0">
                                          
                                          {/* Top indicators */}
-                                         <div className="flex gap-2 justify-center mb-2">
-                                            {[...generatedFlyers, { isPlaceholder: true }].map((_, i) => (
-                                                <button key={i} onClick={() => {
+                                         <div className="flex items-center gap-2 justify-center mb-2">
+                                            {generatedFlyers.map((flyer, i) => (
+                                                <button 
+                                                  key={i} 
+                                                  onClick={() => {
                                                    const el = document.getElementById('carousel_scroll_container');
                                                    if (el) el.scrollTo({ left: el.offsetWidth * i, behavior: 'smooth' });
                                                    setCurrentFlyerIndex(i);
-                                                }} className={`w-10 h-1 rounded-full transition-colors ${i === currentFlyerIndex ? 'bg-[#39FF14]' : 'bg-gray-200 hover:bg-gray-300'}`}></button>
+                                                }} 
+                                                  className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold transition-all ${
+                                                    i === currentFlyerIndex 
+                                                      ? 'bg-charcoal text-[#39FF14] shadow-sm' 
+                                                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                                  }`}
+                                                >
+                                                  {flyer.flyerData?.formatLabel || flyer.flyerData?.aspectRatio || `Size ${i + 1}`}
+                                                </button>
                                             ))}
                                          </div>
 
@@ -5671,7 +4498,7 @@ export default function App() {
                                               setCurrentFlyerIndex(index);
                                            }}
                                          >
-                                            {[...generatedFlyers, { isPlaceholder: true }].map((flyer, i) => (
+                                            {generatedFlyers.map((flyer, i) => (
                                                 <div key={i} className="min-w-full h-full flex flex-col justify-center items-center snap-center px-4" style={{ scrollSnapAlign: 'center', scrollSnapStop: 'always' }}>
                                                    <div className="relative h-full flex flex-col justify-center items-center py-6 w-full" style={{ transform: `scale(${flyerZoom})`, transition: 'transform 0.2s ease-out', transformOrigin: 'center center' }}>
                                                      {flyer.isPlaceholder ? (
@@ -5687,14 +4514,13 @@ export default function App() {
                                                              height={flyer.flyerData?.height || selectedHeight}
                                                              className="w-full h-full pointer-events-none"
                                                            />
-                                                          {showSizeBadge && (
-                                                            <div className="absolute top-10 right-6 bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-xs font-mono font-medium z-50 flex items-center gap-2 border border-white/10 shadow-sm pointer-events-none">
-                                                               <span className="text-gray-400">SIZE</span> {flyer.flyerData?.width || selectedWidth}×{flyer.flyerData?.height || selectedHeight}
-                                                            </div>
-                                                          )}
+                                                          <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[10px] font-mono font-medium z-50 flex items-center gap-1.5 border border-white/10 shadow-sm pointer-events-none">
+                                                            <span className="text-[#39FF14] font-bold">{flyer.flyerData?.aspectRatio || '1:1'}</span>
+                                                            <span className="text-gray-300">({flyer.flyerData?.width || selectedWidth}×{flyer.flyerData?.height || selectedHeight})</span>
+                                                          </div>
                                                           {flyer.debug?.usedModel && (
                                                             <div className="absolute top-10 left-6 bg-black/80 backdrop-blur-sm text-[#39FF14] px-3 py-1.5 rounded-lg text-xs font-mono font-medium z-50 flex items-center gap-2 border border-[#39FF14]/30 shadow-sm pointer-events-none">
-                                                               <Sparkles className="w-3.5 h-3.5" /> {flyer.debug.usedModel}
+                                                              <Sparkles className="w-3.5 h-3.5" /> {flyer.debug.usedModel}
                                                             </div>
                                                           )}
                                                        </div>
@@ -5705,20 +4531,20 @@ export default function App() {
                                                             alt="Flyer"
                                                             className="max-w-full h-full object-contain rounded-2xl shadow-xl bg-white border border-gray-200"
                                                           />
-                                                          {showSizeBadge && (
-                                                            <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[10px] font-mono font-medium z-50 flex items-center gap-1.5 border border-white/10 shadow-sm pointer-events-none">
-                                                               <span className="text-gray-400">SIZE</span> {flyer.flyerData?.width || selectedWidth}×{flyer.flyerData?.height || selectedHeight}
-                                                            </div>
-                                                          )}
+                                                          <div className="absolute top-3 right-3 bg-black/80 backdrop-blur-sm text-white px-2.5 py-1 rounded-md text-[10px] font-mono font-medium z-50 flex items-center gap-1.5 border border-white/10 shadow-sm pointer-events-none">
+                                                            <span className="text-[#39FF14] font-bold">{flyer.flyerData?.aspectRatio || '1:1'}</span>
+                                                            <span className="text-gray-300">({flyer.flyerData?.width || selectedWidth}×{flyer.flyerData?.height || selectedHeight})</span>
+                                                          </div>
                                                           {flyer.debug?.usedModel && (
                                                             <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-sm text-[#39FF14] px-2.5 py-1 rounded-md text-[10px] font-mono font-medium z-50 flex items-center gap-1.5 border border-[#39FF14]/30 shadow-sm pointer-events-none">
-                                                               <Sparkles className="w-3 h-3" /> {flyer.debug.usedModel}
+                                                              <Sparkles className="w-3 h-3" /> {flyer.debug.usedModel}
                                                             </div>
                                                           )}
                                                        </div>
                                                      )}
                                                      
-                                                     <div className="mt-6 flex flex-row items-center gap-3" style={{ transform: `scale(${1/flyerZoom})` }}>
+                                                     <div className="mt-6 flex flex-col items-center gap-3" style={{ transform: `scale(${1/flyerZoom})` }}>
+                                                        <div className="flex flex-row items-center gap-3">
                                                         <button
                                                           onClick={() => {
                                                             if (selectedOccasionId) handleGenerateCampaign();
@@ -5747,6 +4573,15 @@ export default function App() {
                                                            <span className="text-xs font-extrabold uppercase px-1">Debug</span>
                                                          </button>
                                                          
+                                                        <button
+                                                          onClick={() => setShowPostApprovalModal(true)}
+                                                          className="px-4 py-2.5 bg-[#1E824C] hover:bg-[#155C34] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer border border-[#1E824C]"
+                                                          title="Approve Flyer & Get Engagement Copy"
+                                                        >
+                                                          <CheckCircle2 className="w-4 h-4 text-[#39FF14]" />
+                                                          <span>Approve & Share</span>
+                                                        </button>
+
                                                         <a
                                                           href={flyer.imageUrl}
                                                           download
@@ -5755,10 +4590,7 @@ export default function App() {
                                                         >
                                                           <Download className="w-5 h-5" /> 
                                                         </a>
-                                                     </div>
-                                                   </div>
-                                                </div>
-                                            ))}
+                                                     </div><div className="flex items-center gap-2 mt-2 bg-white/80 px-4 py-2 rounded-full border border-gray-200 shadow-sm backdrop-blur-sm" style={{ zIndex: 50 }}><span className="text-xs font-mono text-gray-500 font-medium">50%</span><input type="range" min="0.5" max="2.0" step="0.1" value={flyerZoom} onChange={(e) => setFlyerZoom(parseFloat(e.target.value))} className="w-32 accent-charcoal"/><span className="text-xs font-mono text-gray-500 font-medium">200%</span><span className="text-xs font-mono text-blue-600 font-bold ml-2">{Math.round(flyerZoom * 100)}%</span></div></div></div></div>))}
                                             
                                             {/* Blank GIF Page */}
                                             <div key="gif" className="min-w-full h-full flex flex-col justify-center items-center snap-center px-4">
@@ -5786,6 +4618,15 @@ export default function App() {
                                            />
                                          )}
                                        </AnimatePresence>
+
+                                        <PostApprovalEngagementModal
+                                          isOpen={showPostApprovalModal}
+                                          onClose={() => setShowPostApprovalModal(false)}
+                                          flyer={generatedFlyers[currentFlyerIndex]}
+                                          business={activeBiz}
+                                          occasion={activeOccasion}
+                                          nextOccasion={upcomingNextOccasion}
+                                        />
                                       </div>
                                    ) : (
                                       <div className="text-center space-y-3 max-w-sm">
@@ -6602,21 +5443,21 @@ export default function App() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className={`bg-white w-full h-full relative overflow-hidden flex flex-col ${adminTab === 'flyers' ? '' : 'sm:rounded-[2rem] sm:p-6 sm:max-w-6xl sm:shadow-2xl sm:h-[90vh] p-4'}`}
+              className={`bg-white w-full h-full relative overflow-hidden flex flex-col ${adminTab === 'flyers' || adminTab === 'library' || adminTab === 'prompts' || adminTab === 'references' ? '' : 'sm:rounded-[2rem] sm:p-6 sm:max-w-6xl sm:shadow-2xl sm:h-[90vh] p-4'}`}
             >
-              {adminTab !== 'flyers' && (<button
+              {adminTab !== 'flyers' && adminTab !== 'library' && adminTab !== 'prompts' && adminTab !== 'references' && (<button
                 onClick={() => setShowAdminPanel(false)}
-                className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-800 transition-all"
+                className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-800 transition-all cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>)}
               
               <div className="w-full h-full flex flex-col">
-                {adminTab !== 'flyers' && (
+                {adminTab !== 'flyers' && adminTab !== 'library' && adminTab !== 'prompts' && adminTab !== 'references' && (
                   <>
                     <div className="border-b pb-4 mb-4">
                       <h2 className="text-xl font-display font-bold text-charcoal">Admin Dashboard</h2>
-                      <p className="text-xs text-gray-500">Manage settings, templates, and review AI-generated flyers.</p>
+                      <p className="text-xs text-gray-500">Manage settings, prompt libraries, reference posters, and review AI-generated flyers.</p>
                     </div>
                     {adminTab !== 'menu' && (
                       <div className="mb-4 flex space-x-4">
@@ -6631,16 +5472,54 @@ export default function App() {
                    
                    <div className="flex-1 overflow-y-auto">
                      {adminTab === 'menu' ? (
-                      <div className="flex flex-col items-center justify-center h-full space-y-6">
-                          <button onClick={() => setAdminTab('settings')} className="w-full max-w-sm p-6 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col items-center">
-                              <span className="text-lg font-bold text-charcoal mb-2">API Backend</span>
-                              <span className="text-xs text-gray-500 text-center">Configure external APIs and system settings</span>
+                      <div className="flex flex-col items-center justify-center h-full space-y-4 py-6">
+                          <button onClick={() => setAdminTab('library')} className="w-full max-w-md p-6 bg-gradient-to-br from-white to-emerald-50/40 border border-emerald-200/80 rounded-2xl shadow-xs hover:shadow-md transition-all flex items-start gap-4 text-left group cursor-pointer hover:border-[#1E824C]">
+                              <div className="w-12 h-12 rounded-xl bg-[#1E824C]/10 flex items-center justify-center text-[#1E824C] shrink-0 group-hover:scale-105 transition-transform">
+                                <Sparkles className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <span className="text-base font-bold text-slate-900 mb-1 block group-hover:text-[#1E824C] transition-colors">
+                                  Prompt & Reference Vault
+                                </span>
+                                <span className="text-xs text-gray-500 leading-relaxed block">
+                                  Manage prompt library & gather 50–100 reference posters for Ideogram & Gemini styling.
+                                </span>
+                              </div>
                           </button>
-                          <button onClick={() => setAdminTab('flyers')} className="w-full max-w-sm p-6 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col items-center">
-                              <span className="text-lg font-bold text-[#1E824C] mb-2">Studio Editor</span>
-                              <span className="text-xs text-gray-500 text-center">Review, edit, and approve AI-generated flyers</span>
+
+                          <button onClick={() => setAdminTab('flyers')} className="w-full max-w-md p-6 bg-white border border-gray-200 rounded-2xl shadow-xs hover:shadow-md transition-all flex items-start gap-4 text-left group cursor-pointer hover:border-[#1E824C]">
+                              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0 group-hover:scale-105 transition-transform">
+                                <Palette className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <span className="text-base font-bold text-slate-900 mb-1 block group-hover:text-[#1E824C] transition-colors">
+                                  Studio Editor
+                                </span>
+                                <span className="text-xs text-gray-500 leading-relaxed block">
+                                  Review, edit, and approve AI-generated flyers and seasonal cards.
+                                </span>
+                              </div>
+                          </button>
+
+                          <button onClick={() => setAdminTab('settings')} className="w-full max-w-md p-6 bg-white border border-gray-200 rounded-2xl shadow-xs hover:shadow-md transition-all flex items-start gap-4 text-left group cursor-pointer hover:border-slate-800">
+                              <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 shrink-0 group-hover:scale-105 transition-transform">
+                                <Building2 className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <span className="text-base font-bold text-slate-900 mb-1 block">
+                                  API Backend & Keys
+                                </span>
+                                <span className="text-xs text-gray-500 leading-relaxed block">
+                                  Configure Ideogram API key, DeepSeek settings, and environment configurations.
+                                </span>
+                              </div>
                           </button>
                       </div>
+                   ) : adminTab === 'library' || adminTab === 'prompts' || adminTab === 'references' ? (
+                        <PromptAndReferenceLibrary 
+                          initialTab={adminTab === 'references' ? 'references' : 'prompts'}
+                          onClose={() => setAdminTab('menu')} 
+                        />
                    ) : adminTab === 'flyers' ? (
                         <AdminFlyers onClose={() => setAdminTab('menu')} />
                    ) : (

@@ -5,8 +5,8 @@ import sharp from 'sharp';
 import { GoogleGenAI, Type } from '@google/genai';
 import FormData from 'form-data';
 
-// Placeholder API Constants
-let IDEOGRAM_API_KEY = "UseZ10RT5rsI-x5MAyo_q7WGrDS3SXZPYFsjgLEmJrCBDinAaoQDSoqyjUAHgIxjSXdsp1AcYeejUMLsGN_eRQ";
+// API Constants & Dynamic Key Resolution
+let IDEOGRAM_API_KEY = process.env.IDEOGRAM_API_KEY || "";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 let DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
@@ -18,10 +18,16 @@ export interface BusinessRecord {
   logoUrl?: string;
   brandColor: string;
   accentColor: string;
+  extractedColors?: string[];
   brandTone?: string;
   useSignOff?: boolean;
   signOffName?: string;
   signOffRole?: string;
+  phone?: string;
+  email?: string;
+  instagram?: string;
+  xUsername?: string;
+  description?: string;
   customEvents?: { id: string; name: string; date: string; type: 'birthday' | 'anniversary' | 'other'; notes?: string; isAnnual?: boolean }[];
 }
 
@@ -32,13 +38,84 @@ export interface OccasionRecord {
   culturalContext?: string;
 }
 
-async function updateApiKeysFromConfig() {
+export interface SizeConfig {
+  aspectRatio: string;
+  width: number;
+  height: number;
+  label: string;
+}
+
+export const DIVERSE_SIZE_PRESETS: SizeConfig[] = [
+  { aspectRatio: "1x1", width: 1080, height: 1080, label: "Square (1:1)" },
+  { aspectRatio: "9x16", width: 1080, height: 1920, label: "Story / Status (9:16)" },
+  { aspectRatio: "4x5", width: 1080, height: 1350, label: "Portrait Feed (4:5)" },
+  { aspectRatio: "3x4", width: 1080, height: 1440, label: "Poster (3:4)" },
+  { aspectRatio: "16x9", width: 1920, height: 1080, label: "Landscape (16:9)" },
+];
+
+export function resolveAspectRatioAndDimensions(
+  sizePreset?: string,
+  customWidth?: number,
+  customHeight?: number,
+  variationIndex: number = 0
+): SizeConfig {
+  const normalizedPreset = (sizePreset || "auto-diverse").toLowerCase().trim();
+
+  // If customer explicitly requested a fixed single size:
+  if (normalizedPreset === "1080x1080" || normalizedPreset === "1x1" || normalizedPreset === "square" || normalizedPreset === "1:1") {
+    return { aspectRatio: "1x1", width: 1080, height: 1080, label: "Square (1:1)" };
+  }
+  if (normalizedPreset === "1080x1350" || normalizedPreset === "4x5" || normalizedPreset === "portrait" || normalizedPreset === "4:5") {
+    return { aspectRatio: "4x5", width: 1080, height: 1350, label: "Portrait Feed (4:5)" };
+  }
+  if (normalizedPreset === "1080x1920" || normalizedPreset === "9x16" || normalizedPreset === "story" || normalizedPreset === "status" || normalizedPreset === "9:16") {
+    return { aspectRatio: "9x16", width: 1080, height: 1920, label: "Story / Status (9:16)" };
+  }
+  if (normalizedPreset === "1920x1080" || normalizedPreset === "16x9" || normalizedPreset === "landscape" || normalizedPreset === "16:9") {
+    return { aspectRatio: "16x9", width: 1920, height: 1080, label: "Landscape (16:9)" };
+  }
+  if (normalizedPreset === "1080x1440" || normalizedPreset === "3x4" || normalizedPreset === "3:4") {
+    return { aspectRatio: "3x4", width: 1080, height: 1440, label: "Poster (3:4)" };
+  }
+
+  // If custom width and height are provided and not auto-diverse
+  if (customWidth && customHeight && normalizedPreset !== "auto-diverse") {
+    const ratio = customWidth / customHeight;
+    if (ratio >= 0.95 && ratio <= 1.05) {
+      return { aspectRatio: "1x1", width: customWidth, height: customHeight, label: `Square (${customWidth}x${customHeight})` };
+    } else if (ratio >= 0.72 && ratio <= 0.85) {
+      return { aspectRatio: "4x5", width: customWidth, height: customHeight, label: `Portrait (${customWidth}x${customHeight})` };
+    } else if (ratio >= 0.5 && ratio <= 0.65) {
+      return { aspectRatio: "9x16", width: customWidth, height: customHeight, label: `Story (${customWidth}x${customHeight})` };
+    } else if (ratio >= 0.66 && ratio <= 0.78) {
+      return { aspectRatio: "3x4", width: customWidth, height: customHeight, label: `Poster (${customWidth}x${customHeight})` };
+    } else if (ratio >= 1.5 && ratio <= 1.9) {
+      return { aspectRatio: "16x9", width: customWidth, height: customHeight, label: `Landscape (${customWidth}x${customHeight})` };
+    }
+    return { aspectRatio: "1x1", width: customWidth, height: customHeight, label: `Custom (${customWidth}x${customHeight})` };
+  }
+
+  // Default: Auto (Diverse Multi-Sizes across the generations: 1x1, 4x5, 9x16)
+  return DIVERSE_SIZE_PRESETS[variationIndex % DIVERSE_SIZE_PRESETS.length];
+}
+
+export async function updateApiKeysFromConfig() {
+  if (process.env.IDEOGRAM_API_KEY) {
+    IDEOGRAM_API_KEY = process.env.IDEOGRAM_API_KEY;
+  }
+  if (process.env.DEEPSEEK_API_KEY) {
+    DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+  }
   try {
      const configData = await fs.readFile(path.join(process.cwd(), 'data', 'config.json'), 'utf8');
      const config = JSON.parse(configData);
      if (config.ideogramApiKey) IDEOGRAM_API_KEY = config.ideogramApiKey;
      if (config.deepseekApiKey) DEEPSEEK_API_KEY = config.deepseekApiKey;
   } catch(e) {}
+}
+
+export function getIdeogramApiKey(): string {
+  return process.env.IDEOGRAM_API_KEY || IDEOGRAM_API_KEY || "";
 }
 
 export function getSystemInstruction(currentMonthName: string, currentYear: number) {
@@ -216,7 +293,8 @@ export async function generatePromptPreview(businessId: string, occasionId: stri
     // silently ignore if not found
   }
 
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const geminiKey = process.env.GEMINI_API_KEY || "";
+  const ai = new GoogleGenAI(geminiKey ? { apiKey: geminiKey } : {});
   
   const now = new Date();
   const currentDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -227,7 +305,9 @@ export async function generatePromptPreview(businessId: string, occasionId: stri
 
   const systemInstruction = getSystemInstruction(currentMonthName, currentYear);
 
-  const examplePromptsText = examplePrompts.length > 0 ? '\nINSPIRATION PROMPTS (Do not outright copy these inspiration prompts, just take a few things/insights from 1 or 2 of the templates to shape your prompts combined with the brand profile):\n' + examplePrompts.slice(0, 3).map((p, i) => 'Example ' + (i+1) + ':\n' + p).join('\n\n') : '';
+  const examplePromptsText = examplePrompts.length > 0 
+    ? '\nINSPIRATION STYLE GUIDES (Extract techniques only: extract composition angles, visual hierarchy techniques, and lighting styles from these examples. Do NOT copy the exact text, industry, or subjects from the examples directly):\n' + examplePrompts.slice(0, 2).map((p, i) => 'Style Reference ' + (i+1) + ':\n' + p).join('\n\n') 
+    : '';
 
   const promptText = `SYSTEM CONTEXT - REAL CURRENT DATE AND TIME: ${currentDate}
 CURRENT SEASON NEW YEAR TARGET: ${targetNewYear} (If this is a New Year occasion, use ${targetNewYear} in the flyer text. If we are late in the year, it's for the upcoming year.)
@@ -251,75 +331,72 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
 
   let generated: any = {};
   let retryCount = 0;
-  const maxRetries = 3;
+  const maxRetries = 2;
 
-  let lastError = "Failed to generate prompt";
-  while (retryCount < maxRetries) {
-      try {
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: promptText,
-            config: {
-              systemInstruction: systemInstruction,
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  variations: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        conceptName: { type: Type.STRING },
-                        layoutFamily: { type: Type.STRING },
-                        ideogramPrompt: { type: Type.STRING },
-                        headline: { type: Type.STRING },
-                        bodyMessage: { type: Type.STRING },
-                        signOff: { type: Type.STRING },
-                        contactInfo: { type: Type.STRING },
-                        typography: {
-                          type: Type.OBJECT,
-                          properties: {
-                            headlineFont: { type: Type.STRING },
-                            headlineColor: { type: Type.STRING },
-                            bodyFont: { type: Type.STRING },
-                            bodyColor: { type: Type.STRING }
+  let lastError = "";
+  if (geminiKey) {
+    while (retryCount < maxRetries) {
+        try {
+            const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: promptText,
+              config: {
+                systemInstruction: systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                    variations: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          conceptName: { type: Type.STRING },
+                          layoutFamily: { type: Type.STRING },
+                          ideogramPrompt: { type: Type.STRING },
+                          headline: { type: Type.STRING },
+                          bodyMessage: { type: Type.STRING },
+                          signOff: { type: Type.STRING },
+                          contactInfo: { type: Type.STRING },
+                          typography: {
+                            type: Type.OBJECT,
+                            properties: {
+                              headlineFont: { type: Type.STRING },
+                              headlineColor: { type: Type.STRING },
+                              bodyFont: { type: Type.STRING },
+                              bodyColor: { type: Type.STRING }
+                            }
                           }
-                        }
-                      },
-                      required: ["ideogramPrompt", "headline", "bodyMessage"]
+                        },
+                        required: ["ideogramPrompt", "headline", "bodyMessage"]
+                      }
                     }
-                  }
-                },
-                required: ["variations"]
+                  },
+                  required: ["variations"]
+                }
               }
+            });
+            
+            let responseText = response.text || '{}';
+            responseText = responseText.replace(/^```json\s*/m, '').replace(/```\s*$/m, '').trim();
+            generated = JSON.parse(responseText);
+            
+            if (generated.variations && generated.variations.length > 0) {
+                return { variations: generated.variations, prompt: generated.variations[0].ideogramPrompt, greeting: generated.variations[0].greetingMessage, usedModel: 'Gemini (gemini-2.5-flash)' };
             }
-          });
-          
-          let responseText = response.text || '{}';
-          responseText = responseText.replace(/^```json\s*/m, '').replace(/```\s*$/m, '').trim();
-          generated = JSON.parse(responseText);
-          
-          if (generated.variations && generated.variations.length > 0) {
-              return { variations: generated.variations, prompt: generated.variations[0].ideogramPrompt, greeting: generated.variations[0].greetingMessage, usedModel: 'Gemini (gemini-2.5-flash)' };
-          }
-      } catch (err: any) {
-          lastError = "Failed: " + (err.message || "Unknown error");
-          
-          if (lastError.includes("429") || lastError.includes("exceeded your current quota") || lastError.includes("Quota exceeded") || lastError.includes("RESOURCE_EXHAUSTED") || lastError.includes("503") || lastError.includes("UNAVAILABLE")) {
-              console.log("Gemini API overloaded or quota exceeded, gracefully falling back...");
-              break; // Do not retry on quota error, fall through to fallback
-          }
-          
-          console.warn("Gemini Preview Error (gracefully caught):", err.message);
-          retryCount++;
-      }
+        } catch (err: any) {
+            lastError = err.message || "Unknown error";
+            retryCount++;
+            if (lastError.includes("429") || lastError.includes("quota") || lastError.includes("RESOURCE_EXHAUSTED") || lastError.includes("503") || lastError.includes("UNAVAILABLE")) {
+                break;
+            }
+        }
+    }
   }
 
   // Fallback to DeepSeek if Gemini fails and we have a key
-  if (DEEPSEEK_API_KEY && (lastError.includes("429") || lastError.includes("exceeded your current quota") || lastError.includes("Quota exceeded") || lastError.includes("503") || lastError.includes("UNAVAILABLE"))) {
+  if (DEEPSEEK_API_KEY) {
       try {
-          console.log("Falling back to DeepSeek due to Gemini failure...");
           const deepseekRes = await axios.post('https://api.deepseek.com/chat/completions', {
               model: "deepseek-reasoner",
               messages: [
@@ -331,7 +408,8 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
               headers: {
                   'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
                   'Content-Type': 'application/json'
-              }
+              },
+              timeout: 20000
           });
           
           let responseText = deepseekRes.data.choices[0].message.content || '{}';
@@ -347,30 +425,28 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
               };
           }
       } catch (deepseekErr: any) {
-          console.warn("DeepSeek generation failed (gracefully caught):", deepseekErr.message);
-          // Fall through to hardcoded fallback
+          console.warn("DeepSeek generation failed:", deepseekErr.message);
       }
   }
-  
-  if (lastError.includes("429") || lastError.includes("exceeded your current quota") || lastError.includes("Quota exceeded") || lastError.includes("RESOURCE_EXHAUSTED") || lastError.includes("503") || lastError.includes("UNAVAILABLE")) {
-    const hardcodedVariations = Array(3).fill({
-      ideogramPrompt: `A vibrant, professional flyer designed to celebrate ${overrideOccasionName || 'a special occasion'}. The mood is corporate, elegant, and uplifting. Utilize the brand color ${business?.brandColor || '#1F4D43'} as a primary background element or dominant subject, complemented by ${business?.accentColor || '#E8B14A'} as a striking accent for details or subtle overlay patterns. Incorporate modern geometric patterns or abstract flowing lines that subtly suggest connectivity and smooth transitions, rendered with artistic discretion. The composition should feature generous negative space for a clean, sophisticated look. Consider a soft, matte finish or a subtle frosted glass texture to add depth. Text to include: 'Wishing you a truly special day filled with success and positive connections.' and '${business?.businessName || 'Apex Logistics'}'. Ensure all text colors strictly contrast well with the background. STRONGLY INSTRUCT Ideogram NOT to add any other textual information, words, letters, dates, years, or months to the flyer outside of what is explicitly requested.`,
-      greetingMessage: `Wishing you a truly special day filled with success and positive connections from ${business?.businessName || 'our team'}.`
-    });
-    return {
-      variations: hardcodedVariations,
-      prompt: hardcodedVariations[0].ideogramPrompt,
-      greeting: hardcodedVariations[0].greetingMessage,
-      usedModel: 'Fallback Hardcoded Template'
-    };
-  }
 
-  return { prompt: lastError, greeting: "Failed to generate greeting", variations: [], usedModel: 'Failed' };
+  throw new Error(`AI generation failed: ${lastError || 'Unable to generate copy with AI. Please check your API key.'}`);
 }
 
-export async function generateFlyersBatch(businessId: string, occasionId: string, overrideOccasionName?: string, numImages: number = 3) {
+export async function generateFlyersBatch(
+  businessId: string, 
+  occasionId: string, 
+  overrideOccasionName?: string, 
+  numImages: number = 2,
+  options?: {
+    sizePreset?: string;
+    width?: number;
+    height?: number;
+    aspectRatios?: string[];
+    tempBiz?: Partial<BusinessRecord>;
+  }
+) {
   const startTime = Date.now();
-  console.log(`--- Starting New Flyer Pipeline for Business ${businessId}, Occasion ${overrideOccasionName || occasionId} ---`);
+  console.log(`--- Starting New Flyer Pipeline for Business ${businessId}, Occasion ${overrideOccasionName || occasionId} (${numImages} variations) ---`);
 
   // 1. Retrieve Business Record
   const businessesPath = path.resolve(process.cwd(), 'data', 'businesses.json');
@@ -383,7 +459,22 @@ export async function generateFlyersBatch(businessId: string, occasionId: string
   }
 
   let business = businesses.find(b => b.id === businessId);
-  if (!business) {
+  if (options?.tempBiz) {
+    business = {
+      id: businessId || 'temp',
+      businessName: options.tempBiz.businessName || 'My Brand',
+      industry: options.tempBiz.industry || 'Business',
+      location: options.tempBiz.location || 'Lagos, Nigeria',
+      brandColor: options.tempBiz.brandColor || '#1E824C',
+      accentColor: options.tempBiz.accentColor || '#45B1E8',
+      extractedColors: options.tempBiz.extractedColors || [],
+      brandTone: options.tempBiz.brandTone || 'corporate',
+      logoUrl: options.tempBiz.logoUrl || '',
+      phone: options.tempBiz.phone || '',
+      email: options.tempBiz.email || '',
+      instagram: options.tempBiz.instagram || '',
+    };
+  } else if (!business) {
     console.warn(`Business with ID ${businessId} not found, using default.`);
     business = {
       id: businessId || 'default',
@@ -445,7 +536,8 @@ export async function generateFlyersBatch(businessId: string, occasionId: string
 
   // 3. Stage 1: AI Copywriting and Prompt Generation via Gemini
   console.log('Stage 1: Generating AI copy and Ideogram prompt...');
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+  const geminiKey = process.env.GEMINI_API_KEY || "";
+  const ai = new GoogleGenAI(geminiKey ? { apiKey: geminiKey } : {});
   
   const now = new Date();
   const currentDate = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -456,12 +548,21 @@ export async function generateFlyersBatch(businessId: string, occasionId: string
 
   const systemInstruction = getSystemInstruction(currentMonthName, currentYear);
 
-  const examplePromptsText = examplePrompts.length > 0 ? '\nINSPIRATION PROMPTS (Do not outright copy these inspiration prompts, just take a few things/insights from 1 or 2 of the templates to shape your prompts combined with the brand profile):\n' + examplePrompts.slice(0, 3).map((p, i) => 'Example ' + (i+1) + ':\n' + p).join('\n\n') : '';
+  const examplePromptsText = examplePrompts.length > 0 
+    ? '\nINSPIRATION STYLE GUIDES (Extract techniques only: extract composition angles, visual hierarchy techniques, and lighting styles from these examples. Do NOT copy the exact text, industry, or subjects from the examples directly):\n' + examplePrompts.slice(0, 2).map((p, i) => 'Style Reference ' + (i+1) + ':\n' + p).join('\n\n') 
+    : '';
+
+  const formatContextLines = Array.from({ length: numImages }).map((_, idx) => {
+    const size = resolveAspectRatioAndDimensions(options?.sizePreset, options?.width, options?.height, idx);
+    return `Variation ${idx + 1} Target Canvas: ${size.label} (Aspect Ratio ${size.aspectRatio})`;
+  }).join('\n');
 
   const promptText = `SYSTEM CONTEXT - REAL CURRENT DATE AND TIME: ${currentDate}
 CURRENT SEASON NEW YEAR TARGET: ${targetNewYear} (If this is a New Year occasion, use ${targetNewYear} in the flyer text. If we are late in the year, it's for the upcoming year.)
 NUMBER OF VARIATIONS NEEDED: ${numImages}
-(Each variation should have a unique, distinct copy and a slightly different artistic prompt.)${examplePromptsText}
+(Each variation should have a unique, distinct copy, appropriate composition for its canvas size, and a slightly different artistic prompt.)
+TARGET CANVAS SIZES:
+${formatContextLines}${examplePromptsText}
 
 Business Profile:
 Name: ${business.businessName}
@@ -480,125 +581,103 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
 
   let generated: any = {};
   let retryCount = 0;
-  const maxRetries = 3;
+  const maxRetries = 2;
 
-  while (retryCount < maxRetries) {
-      try {
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: promptText,
-            config: {
-              systemInstruction: systemInstruction,
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  variations: {
-                    type: Type.ARRAY,
-                    items: {
-                      type: Type.OBJECT,
-                      properties: {
-                        conceptName: { type: Type.STRING },
-                        layoutFamily: { type: Type.STRING },
-                        ideogramPrompt: { type: Type.STRING },
-                        headline: { type: Type.STRING },
-                        bodyMessage: { type: Type.STRING },
-                        signOff: { type: Type.STRING },
-                        contactInfo: { type: Type.STRING },
-                        typography: {
-                          type: Type.OBJECT,
-                          properties: {
-                            headlineFont: { type: Type.STRING },
-                            headlineColor: { type: Type.STRING },
-                            bodyFont: { type: Type.STRING },
-                            bodyColor: { type: Type.STRING }
+  if (geminiKey) {
+    while (retryCount < maxRetries) {
+        try {
+            const response = await ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: promptText,
+              config: {
+                systemInstruction: systemInstruction,
+                responseMimeType: "application/json",
+                responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                    variations: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          conceptName: { type: Type.STRING },
+                          layoutFamily: { type: Type.STRING },
+                          ideogramPrompt: { type: Type.STRING },
+                          headline: { type: Type.STRING },
+                          bodyMessage: { type: Type.STRING },
+                          signOff: { type: Type.STRING },
+                          contactInfo: { type: Type.STRING },
+                          typography: {
+                            type: Type.OBJECT,
+                            properties: {
+                              headlineFont: { type: Type.STRING },
+                              headlineColor: { type: Type.STRING },
+                              bodyFont: { type: Type.STRING },
+                              bodyColor: { type: Type.STRING }
+                            }
                           }
-                        }
-                      },
-                      required: ["ideogramPrompt", "headline", "bodyMessage"]
+                        },
+                        required: ["ideogramPrompt", "headline", "bodyMessage"]
+                      }
                     }
-                  }
-                },
-                required: ["variations"]
+                  },
+                  required: ["variations"]
+                }
               }
+            });
+            
+            let responseText = response.text || '{}';
+            responseText = responseText.replace(/^```json\s*/m, '').replace(/```\s*$/m, '').trim();
+            generated = JSON.parse(responseText);
+            
+            if (generated.variations && generated.variations.length > 0) {
+                generated.usedModel = 'Gemini (gemini-2.5-flash)';
+                break; // Success
             }
+        } catch (err: any) {
+            retryCount++;
+            console.warn(`Gemini generation attempt ${retryCount}/${maxRetries} failed:`, err.message);
+            if (err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("503") || err.message?.includes("UNAVAILABLE")) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+  }
+
+  // Fallback to DeepSeek if Gemini was not configured or failed
+  if ((!generated.variations || generated.variations.length === 0) && DEEPSEEK_API_KEY) {
+      try {
+          console.log("Using DeepSeek model for copy generation...");
+          const deepseekRes = await axios.post('https://api.deepseek.com/chat/completions', {
+              model: "deepseek-reasoner",
+              messages: [
+                  { role: "system", content: systemInstruction + `\n\nReturn ONLY a JSON object with a 'variations' array containing exactly ${numImages} objects with 'headline', 'bodyMessage', and 'ideogramPrompt' properties. Return valid JSON.` },
+                  { role: "user", content: promptText }
+              ],
+              response_format: { type: "text" }
+          }, {
+              headers: {
+                  'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                  'Content-Type': 'application/json'
+              },
+              timeout: 20000
           });
           
-          let responseText = response.text || '{}';
-          responseText = responseText.replace(/^```json\s*/m, '').replace(/```\s*$/m, '').trim();
+          let responseText = deepseekRes.data.choices[0].message.content || '{}';
+          responseText = responseText.replace(/^```json\s*/im, '').replace(/```\s*$/m, '').trim();
           generated = JSON.parse(responseText);
-          
           if (generated.variations && generated.variations.length > 0) {
-              break; // Success
-          } else {
-              throw new Error('AI generation failed to produce valid variations');
+              generated.usedModel = 'DeepSeek (deepseek-reasoner)';
           }
-      } catch (err: any) {
-          retryCount++;
-          
-          if (err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("exceeded") || err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("503") || err.message?.includes("UNAVAILABLE")) {
-              console.log(`Gemini API overloaded or quota exceeded (attempt ${retryCount}/${maxRetries}), forcing immediate fallback...`);
-              retryCount = maxRetries; // Force immediate fallback
-          } else {
-              console.warn(`Gemini generation failed (attempt ${retryCount}/${maxRetries}):`, err.message);
-          }
-          
-          if (retryCount >= maxRetries) {
-             let usedFallback = false;
-             if (DEEPSEEK_API_KEY && (err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("exceeded") || err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("503") || err.message?.includes("UNAVAILABLE"))) {
-                try {
-                    console.log("Falling back to DeepSeek due to Gemini failure...");
-                    const deepseekRes = await axios.post('https://api.deepseek.com/chat/completions', {
-                        model: "deepseek-reasoner",
-                        messages: [
-                            { role: "system", content: systemInstruction + `\n\nReturn ONLY a JSON object with a 'variations' array containing exactly ${numImages} objects with 'greetingMessage' and 'ideogramPrompt' properties. Do not include markdown formatting or backticks. Return valid JSON.` },
-                            { role: "user", content: promptText }
-                        ],
-                        response_format: { type: "text" }
-                    }, {
-                        headers: {
-                            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    let responseText = deepseekRes.data.choices[0].message.content || '{}';
-                    responseText = responseText.replace(/^```json\s*/im, '').replace(/```\s*$/m, '').trim();
-                    generated = JSON.parse(responseText);
-                    
-                    if (generated.variations && generated.variations.length > 0) {
-                        generated.usedModel = 'DeepSeek (deepseek-reasoner)';
-                        usedFallback = true;
-                        break;
-                    }
-                } catch (deepseekErr: any) {
-                    console.warn("DeepSeek generation failed (gracefully caught):", deepseekErr.message);
-                    // Fallthrough
-                }
-             }
-             
-             if (!usedFallback && (err.message?.includes("429") || err.message?.includes("quota") || err.message?.includes("exceeded") || err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("503") || err.message?.includes("UNAVAILABLE"))) {
-                 console.log("Using fallback generated variations due to quota limits...");
-                 generated = {
-                    usedModel: 'Fallback Hardcoded Template',
-                    variations: Array(numImages).fill({
-                        greetingMessage: `Wishing you a truly special day filled with success and positive connections from ${business?.businessName || 'our team'}.`,
-                        ideogramPrompt: `A vibrant, professional flyer designed to celebrate ${overrideOccasionName || 'a special occasion'}. The mood is corporate, elegant, and uplifting. Utilize the brand color ${business?.brandColor || '#1F4D43'} as a primary background element or dominant subject, complemented by ${business?.accentColor || '#E8B14A'} as a striking accent for details or subtle overlay patterns. Incorporate modern geometric patterns or abstract flowing lines that subtly suggest connectivity and smooth transitions, rendered with artistic discretion. The composition should feature generous negative space for a clean, sophisticated look. Consider a soft, matte finish or a subtle frosted glass texture to add depth. Text to include: 'Wishing you a truly special day filled with success and positive connections.' and '${business?.businessName || 'Apex Logistics'}'. Ensure all text colors strictly contrast well with the background. STRONGLY INSTRUCT Ideogram NOT to add any other textual information, words, letters, dates, years, or months to the flyer outside of what is explicitly requested.`
-                    })
-                 };
-                 break;
-             }
-             if (!usedFallback) {
-                 throw new Error(`Failed to generate content after ${maxRetries} attempts: ${err.message}`);
-             }
-          }
-          // Exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+      } catch (deepseekErr: any) {
+          console.warn("DeepSeek generation failed (gracefully caught):", deepseekErr.message);
       }
   }
 
-  if (!generated.usedModel && generated.variations && generated.variations.length > 0) {
-      generated.usedModel = 'Gemini (gemini-2.5-flash)';
+  // If neither AI model returned variations, throw error
+  if (!generated.variations || generated.variations.length === 0) {
+      throw new Error('AI copy generation failed: Neither Gemini nor DeepSeek produced valid flyer copy. Please verify your AI API keys in settings.');
   }
 
   // Ensure we have enough variations
@@ -606,69 +685,51 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
      generated.variations.push(generated.variations[0]);
   }
 
-  console.log(`Generated ${generated.variations.length} variations.`);
+  console.log(`Generated ${generated.variations.length} variations via ${generated.usedModel}.`);
 
-  // 4. Stage 2: Flyer image generation via Ideogram API
-  console.log('Stage 2: Calling Ideogram API...');
+  // 4. Stage 2: Call Ideogram API for the requested variations (Default: 2 variations)
+  console.log(`Stage 2: Calling Ideogram API for ${numImages} variations...`);
   
+  const activeIdeogramKey = getIdeogramApiKey();
+  if (!activeIdeogramKey) {
+    throw new Error('Ideogram API Key is missing. Please configure your IDEOGRAM_API_KEY in the AI Studio Secrets panel or Admin Settings.');
+  }
+
   let ideogramResponses = [];
   try {
-     const allRatios = ["ASPECT_16_9", "ASPECT_1_1", "ASPECT_9_16"]; // 1920x1080, 1080x1080, 1080x1920
-     const reqs = generated.variations.slice(0, numImages).map((variation: any, idx: number) => {
-        const ratio = allRatios[idx % allRatios.length];
-        // Incorporate size info into prompt context
-        let ratioDesc = "Landscape (1920x1080)";
-        if (ratio === "ASPECT_1_1") ratioDesc = "Square (1080x1080)";
-        if (ratio === "ASPECT_9_16") ratioDesc = "Portrait (1080x1920)";
+     const reqs = generated.variations.slice(0, numImages).map(async (variation: any, idx: number) => {
+        const sizeConfig = resolveAspectRatioAndDimensions(options?.sizePreset, options?.width, options?.height, idx);
         
-        const payload = {
-          image_request: {
-            prompt: `[SIZE: ${ratioDesc}] ` + variation.ideogramPrompt,
-            aspect_ratio: ratio,
-            model: "V_2",
-            magic_prompt_option: "ON"
-          }
-        };
-
-        return axios.post('https://api.ideogram.ai/generate', payload, {
+        console.log(`Calling Ideogram 4.0 Default API for variation ${idx + 1} with aspect_ratio: ${sizeConfig.aspectRatio} (${sizeConfig.label})...`);
+        const ideogramRes = await axios.post('https://api.ideogram.ai/v1/ideogram-v4/generate', {
+          text_prompt: variation.ideogramPrompt,
+          rendering_speed: "DEFAULT",
+          aspect_ratio: sizeConfig.aspectRatio
+        }, {
           headers: {
-            'Api-Key': IDEOGRAM_API_KEY,
+            'Api-Key': activeIdeogramKey,
             'Content-Type': 'application/json'
-          }
-        }).then(res => ({ res, variation }));
+          },
+          timeout: 60000
+        });
+
+        const ideogramData = ideogramRes.data?.data?.[0];
+        return {
+            url: ideogramData?.url,
+            variation: variation,
+            greetingMessage: variation.greetingMessage || variation.bodyMessage,
+            ideogramPrompt: variation.ideogramPrompt,
+            magicPrompt: ideogramData?.prompt || variation.ideogramPrompt,
+            sizeConfig: sizeConfig,
+            rawResolution: ideogramData?.resolution
+        };
      });
      
-     const responses = await Promise.all(reqs);
-     for (const item of responses) {
-         const res = item.res;
-         const variation = item.variation;
-         
-         let images = [];
-         if (res.data && res.data.data) {
-             images = res.data.data;
-         } else if (res.data && res.data.url) {
-             images = [res.data];
-         } else if (res.data && res.data[0] && res.data[0].url) {
-             images = res.data;
-         } else {
-             console.log("Unexpected Ideogram Response Format:", JSON.stringify(res.data));
-             if (res.data && res.data.data) {
-                 images = res.data.data;
-             }
-         }
-         
-         // Attach variation greeting and prompt to the image responses so we can use them later
-         images.forEach((img: any) => {
-             img.greetingMessage = variation.greetingMessage;
-             img.ideogramPrompt = variation.ideogramPrompt;
-             img.magicPrompt = img.prompt || variation.ideogramPrompt;
-             img.variation = variation; // The API might return the magic prompt in `prompt`
-             ideogramResponses.push(img);
-         });
-     }
+     ideogramResponses = await Promise.all(reqs);
   } catch (err: any) {
+    const errorDetails = err.response?.data?.message || err.response?.data?.error || err.message;
     console.error('Ideogram API Error:', err.response?.data || err.message);
-    throw new Error('Failed to generate image from Ideogram API');
+    throw new Error(`Ideogram API failed: ${errorDetails}`);
   }
 
   if (ideogramResponses.length === 0) {
@@ -681,25 +742,26 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
 
   const finalFlyers = [];
 
-
   for (let i = 0; i < ideogramResponses.length; i++) {
+    const variation = ideogramResponses[i].variation;
+    const sizeConfig = ideogramResponses[i].sizeConfig || resolveAspectRatioAndDimensions(options?.sizePreset, options?.width, options?.height, i);
     const imageUrl = ideogramResponses[i].url;
+    
+    if (!imageUrl) {
+      throw new Error(`Ideogram did not provide an image download URL for variation ${i+1}`);
+    }
     
     // Download the generated image
     console.log(`Downloading Ideogram image ${i+1}...`);
-    const imageRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const imageRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
     const imageBuffer = Buffer.from(imageRes.data);
-
-    // 5. Logo overlay removed as per new architecture
-    let finalBuffer = imageBuffer;
 
     const filename = `${business.id}_${occasion.id}_${Date.now()}_${i}.jpg`;
     const outputPath = path.resolve(flyersDir, filename);
 
-    await fs.writeFile(outputPath, finalBuffer);
-    console.log(`Final composited flyer saved to: ${outputPath}`);
+    await fs.writeFile(outputPath, imageBuffer);
+    console.log(`Final flyer saved to: ${outputPath}`);
     
-    const variation = ideogramResponses[i].variation;
     finalFlyers.push({
       id: "flyer_" + Date.now() + "_" + i,
       imageUrl: `/flyers/${filename}`,
@@ -713,14 +775,21 @@ Cultural Context: ${occasion.culturalContext || 'Standard celebration'}`;
       occasionName: occasion.name,
       createdAt: new Date().toISOString(),
       flyerData: {
-          width: 800,
-          height: 1000
+          width: sizeConfig.width,
+          height: sizeConfig.height,
+          aspectRatio: sizeConfig.aspectRatio,
+          formatLabel: sizeConfig.label
       },
       debug: {
         geminiPrompt: ideogramResponses[i].ideogramPrompt,
         magicPrompt: ideogramResponses[i].magicPrompt,
         usedModel: generated.usedModel,
-        ideogramResponse: ideogramResponses[i],
+        aspectRatio: sizeConfig.aspectRatio,
+        formatLabel: sizeConfig.label,
+        ideogramResponse: {
+          ...ideogramResponses[i],
+          resolution: ideogramResponses[i].rawResolution || `${sizeConfig.width}x${sizeConfig.height}`
+        },
         logoPlacement: null
       }
     });
